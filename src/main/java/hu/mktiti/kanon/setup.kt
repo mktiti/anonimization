@@ -1,5 +1,6 @@
 package hu.mktiti.kanon
 
+import hu.mktiti.kanon.attribute.RecordDescriptor
 import org.apache.commons.cli.CommandLine
 import org.apache.commons.cli.DefaultParser
 import org.apache.commons.cli.Options
@@ -57,7 +58,7 @@ internal object Parser {
 
     private fun getParameter(commandLine: CommandLine, option: ArgOption): String =
             coalesce({ commandLine.getOptionValue(option.fullName) },
-                   { option.defaultParameter },
-                   default = { throw ParseException("No parameter for ${option.fullName}") })
+                     { option.defaultParameter },
+                     default = { throw ParseException("No parameter for ${option.fullName}") })
 
 }

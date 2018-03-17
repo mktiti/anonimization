@@ -1,5 +1,6 @@
 package hu.mktiti.kanon
 
+import hu.mktiti.kanon.attribute.*
 import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -21,7 +22,7 @@ internal object DescriptorParser {
     internal fun parse(filePath: String): RecordDescriptor? {
         val file = File(filePath)
         if (!file.exists()) {
-            log.warning("descriptor file '$filePath' does not exists!")
+            log.warning("descriptor file '${file.absoluteFile}' does not exists!")
             return null
         }
 
@@ -112,7 +113,7 @@ internal object DescriptorParser {
                 both = { min, max -> DateAttribute(pattern, min, max) })
     }
 
-    private fun <A, T> fromBrackets(params: String, parse: (String) -> T?,
+    private fun <A : Any, T> fromBrackets(params: String, parse: (String) -> T?,
                                     missing: () -> AttributeType<A>,
                                     left: (T) -> AttributeType<A>,
                                     both: (T, T) -> AttributeType<A>,
