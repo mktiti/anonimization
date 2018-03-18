@@ -14,6 +14,14 @@ class NamedRecursiveBlock(name: String, content: List<NamedRecursiveBlock>) : Na
                 name + content.joinToString(prefix = " {", separator = ", ", postfix = "}")
 
     fun contains(value: String): Boolean = name == value || content.any { it.contains(value) }
+
+    fun find(value: String): NamedRecursiveBlock? {
+        return if (name == value) {
+            this
+        } else {
+            content.find { it.name == value }
+        }
+    }
 }
 
 internal object DescriptorParser {
@@ -87,21 +95,21 @@ internal object DescriptorParser {
         }
     }
 
-    private fun parseInt(params: String): AttributeType<Int> =
+    private fun parseInt(params: String): IntAttribute =
             fromBrackets(params, parse = { it.toInt() },
                     missing = { IntAttribute() },
                     left = { IntAttribute(minValue = it) },
                     right = { IntAttribute(maxValue = it) },
                     both = { min, max -> IntAttribute(minValue = min, maxValue = max) })
 
-    private fun parseString(params: String): AttributeType<String> =
+    private fun parseString(params: String): StringAttribute =
             fromBrackets(params, parse = { it.toInt() },
                     missing = { StringAttribute() },
                     left = { StringAttribute(minLength = it) },
                     right = { StringAttribute(maxLength = it) },
-                    both = { min, max -> StringAttribute(min, max) })
+                    both = { min, max -> StringAttribute(minLength =  min, maxLength = max) })
 
-    private fun parseDate(params: String): AttributeType<LocalDate> {
+    private fun parseDate(params: String): DateAttribute {
         val tokens = params.split("[")
         val pattern = if (tokens.size != 2 || tokens[0].isEmpty()) "yyyy-MM-dd" else tokens[0]
         val formatter = DateTimeFormatter.ofPattern(pattern)
@@ -110,14 +118,15 @@ internal object DescriptorParser {
                 missing = { DateAttribute() },
                 left = { DateAttribute(formatterString = pattern, after = it) },
                 right = { DateAttribute(formatterString = pattern, before = it) },
-                both = { min, max -> DateAttribute(pattern, min, max) })
+                both = { min, max -> DateAttribute(pattern, after = min, before = max) })
     }
 
-    private fun <A : Any, T> fromBrackets(params: String, parse: (String) -> T?,
-                                    missing: () -> AttributeType<A>,
-                                    left: (T) -> AttributeType<A>,
-                                    both: (T, T) -> AttributeType<A>,
-                                    right: (T) -> AttributeType<A>): AttributeType<A> {
+    private fun <A : AttributeType<*>, T> fromBrackets(
+            params: String, parse: (String) -> T?,
+            missing: () -> A,
+            left: (T) -> A,
+            both: (T, T) -> A,
+            right: (T) -> A): A {
 
         val (leftVal, rightVal) = parseBrackets(params, parse) ?: return missing()
         return if (leftVal != null && rightVal != null) {

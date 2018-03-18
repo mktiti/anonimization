@@ -2,6 +2,7 @@ package hu.mktiti.kanon.anonimization
 
 import hu.mktiti.kanon.attribute.Attribute
 import hu.mktiti.kanon.attribute.AttributeType
+import hu.mktiti.kanon.attribute.AttributeValue
 import hu.mktiti.kanon.attribute.RecordDescriptor
 import hu.mktiti.kanon.logger
 import java.util.logging.Level
@@ -49,12 +50,12 @@ object AnonimizationEngine {
         return currentBlocks
     }
 
-    private fun <T : Any> splitByColumn(data: Data, attribIndex: Int, attribType: AttributeType<T>): Map<T, Data> {
+    private fun <T : AttributeValue> splitByColumn(data: Data, attribIndex: Int, attribType: AttributeType<T>): Map<T, Data> {
         val result = HashMap<T, MutableList<Record>>()
 
         for (record in data) {
             val quasiValue = record[attribIndex] as T
-            val key = result.keys.find { attribType.isSame(it, quasiValue) }
+            val key = result.keys.find { attribType.subsetOf(it, quasiValue) }
             if (key == null) {
                 result[quasiValue] = mutableListOf(record)
             } else {

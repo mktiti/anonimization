@@ -1,7 +1,9 @@
 package hu.mktiti.kanon.attribute
+import java.time.LocalDateTime
 
 import kotlin.reflect.KClass
 
+/*
 fun <T : Enum<*>> KClass<T>.asAttribute() = EnumAttribute(this.java.enumConstants.map { it.name }.toSet())
 
 class EnumAttribute(
@@ -16,3 +18,4 @@ class EnumAttribute(
 
     override fun isSame(a: String, b: String) = a == b
 }
+        */

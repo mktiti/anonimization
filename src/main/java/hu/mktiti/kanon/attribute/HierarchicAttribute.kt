@@ -4,17 +4,17 @@ import hu.mktiti.kanon.NamedRecursiveBlock
 import java.util.*
 
 class HierarchicAttribute(
-        private val valueSet: NamedRecursiveBlock) : AttributeType<String>() {
+        private val valueSet: NamedRecursiveBlock) : AttributeType<HierarchicAttributeValue>() {
 
-    override fun parser(): (String) -> String = {
-        if (valueSet.contains(it)) it
-        else throw AttributeParseException("Enum value [$it] not in set of possible values [$valueSet]")
+    override fun parse(string: String): HierarchicAttributeValue {
+        return valueSet.find(string)?.let(::SimpleHierarchicValue) ?:
+        throw AttributeParseException("Enum value [$string] not in set of possible values [$valueSet]")
     }
 
     override fun toString() = "${valueSet.name} (enum) attribute"
 
-    override fun show(value: String): String =
-            searchPath(value)?.joinToString(separator = ".", transform = NamedRecursiveBlock::name) ?: "---"
+    override fun show(value: HierarchicAttributeValue): String =
+            searchPath((value as SimpleHierarchicValue).value.name)?.joinToString(separator = ".", transform = NamedRecursiveBlock::name) ?: "---"
 
     private fun searchPath(value: String, root: NamedRecursiveBlock = valueSet): List<NamedRecursiveBlock>? {
         if (value == root.name) return listOf(root)
@@ -29,5 +29,13 @@ class HierarchicAttribute(
         return null
     }
 
-    override fun isSame(a: String, b: String) = a == b
+    override fun subsetOf(parent: HierarchicAttributeValue, child: HierarchicAttributeValue) = child in parent
+}
+
+sealed class HierarchicAttributeValue : AttributeValue {
+    abstract operator fun contains(child: HierarchicAttributeValue): Boolean
+}
+
+class SimpleHierarchicValue(val value: NamedRecursiveBlock) : HierarchicAttributeValue() {
+    override operator fun contains(child: HierarchicAttributeValue) = value.contains((child as SimpleHierarchicValue).value.name)
 }

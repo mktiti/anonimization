@@ -3,19 +3,21 @@ package hu.mktiti.kanon.attribute
 import hu.mktiti.kanon.logger
 import java.util.logging.Level
 
-abstract class AttributeType<T : Any> {
-    abstract fun parser(): (String) -> T
+interface AttributeValue
+
+abstract class AttributeType<T : AttributeValue> {
+    abstract fun parse(string: String): T
 
     open fun show(value: T): String = value.toString()
 
     fun showUnsafe(value: Any): String = show(value as T)
 
-    abstract fun isSame(a: T, b: T): Boolean
+    abstract fun subsetOf(parent: T, child: T): Boolean
 }
 
 class AttributeParseException(message: String) : RuntimeException(message)
 
-data class Attribute<T : Any>(val name: String, val type: AttributeType<T>, val quasiIdentifier: Boolean, val secret: Boolean) {
+data class Attribute<T : AttributeValue>(val name: String, val type: AttributeType<T>, val quasiIdentifier: Boolean, val secret: Boolean) {
 
     override fun toString() = "{$name: $type}"
 }
@@ -33,7 +35,7 @@ data class RecordDescriptor(val attributes: List<Attribute<*>>) {
 
         return try {
             (0 until attributes.size).map {
-                attributes[it].type.parser()(split[it])
+                attributes[it].type.parse(split[it])
             }.toList()
         } catch (ape: AttributeParseException) {
             log.log(Level.WARNING, "Unable to parse attribute", ape)
