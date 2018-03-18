@@ -19,11 +19,14 @@ object AnonimizationEngine {
 
     private val log by logger()
 
-    fun calculateKAnonimity(descriptor: RecordDescriptor, data: List<Record>): Int {
+    fun calculateKAnonimity(descriptor: RecordDescriptor, data: List<Record>): Int =
+        splitToEqClasses(descriptor, data).map(List<Record>::size).min() ?: 0
+
+    fun splitToEqClasses(descriptor: RecordDescriptor, data: List<Record>): List<Data> {
         val quasiIndexes = descriptor.attributes
-                            .mapIndexed { i, a -> i to a }
-                            .filter { (_, a) -> a.quasiIdentifier }
-                            .map(Pair<Int, Attribute<*>>::first)
+                                .mapIndexed(::Pair)
+                                .filter { (_, a) -> a.quasiIdentifier }
+                                .map(Pair<Int, Attribute<*>>::first)
 
         val newBlocks: MutableList<Data> = mutableListOf()
         var currentBlocks = listOf(data)
@@ -35,20 +38,15 @@ object AnonimizationEngine {
             currentBlocks = ArrayList<Data>(newBlocks)
         }
 
-        if (log.isLoggable(Level.INFO)) {
-            StringBuilder().apply {
-                appendln("K-Anonim groups:")
-                for (group in currentBlocks) {
-                    appendln("--------------------")
-                    for (record in group) {
-                        appendln(descriptor.showLine(record))
-                    }
-                }
-                log.info(toString())
+        log.info {
+            currentBlocks.joinToString(
+                    prefix = "K-Anonim groups:\n",
+                    separator = "\n-----------------\n") {
+                it.joinToString(separator = "\n", transform = descriptor::showLine)
             }
         }
 
-        return currentBlocks.map(List<Record>::size).min() ?: 0
+        return currentBlocks
     }
 
     private fun <T : Any> splitByColumn(data: Data, attribIndex: Int, attribType: AttributeType<T>): Map<T, Data> {
