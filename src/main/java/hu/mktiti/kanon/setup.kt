@@ -7,6 +7,13 @@ import org.apache.commons.cli.Options
 import org.apache.commons.cli.ParseException
 import java.io.File
 
+/**
+ * Program configuration
+ *
+ * @property descriptor record descriptor
+ * @property dataFile file to load data from
+ * @property outputFilePath result output path
+ */
 internal data class Config(
         val descriptor: RecordDescriptor,
         val dataFile: File,
@@ -27,6 +34,9 @@ private enum class ArgOption(
 
 internal class ConfigException(message: String) : RuntimeException(message)
 
+/**
+ * Parser engine singleton
+ */
 internal object Parser {
     private val log by logger()
 
@@ -36,6 +46,12 @@ internal object Parser {
         }
     }
 
+    /**
+     * Safely parse configuration
+     *
+     * @param args program arguments
+     * @return the config if it can be parsed and is valid
+     */
     internal fun parseConfig(args: Array<String>): Config? {
         try {
             val commandLine = DefaultParser().parse(createCliSetup(), args)

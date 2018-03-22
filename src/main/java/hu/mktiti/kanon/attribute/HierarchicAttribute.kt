@@ -3,6 +3,11 @@ package hu.mktiti.kanon.attribute
 import hu.mktiti.kanon.NamedRecursiveBlock
 import java.util.*
 
+/**
+ * Attribute to represent (structured) enums
+ *
+ * @property valueSet root of accepted Enum values
+ */
 class HierarchicAttribute(
         private val valueSet: NamedRecursiveBlock) : AttributeType<HierarchicAttributeValue>() {
 
@@ -32,10 +37,16 @@ class HierarchicAttribute(
     override fun subsetOf(parent: HierarchicAttributeValue, child: HierarchicAttributeValue) = child in parent
 }
 
+/**
+ * Enum value type
+ */
 sealed class HierarchicAttributeValue : AttributeValue {
     abstract operator fun contains(child: HierarchicAttributeValue): Boolean
 }
 
+/**
+ * Enum value
+ */
 class SimpleHierarchicValue(val value: NamedRecursiveBlock) : HierarchicAttributeValue() {
     override operator fun contains(child: HierarchicAttributeValue) = value.contains((child as SimpleHierarchicValue).value.name)
 }

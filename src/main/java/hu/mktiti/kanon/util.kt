@@ -4,10 +4,17 @@ import java.util.*
 import java.util.logging.Logger
 import kotlin.reflect.full.companionObject
 
+/**
+ * logger helper for any object/class
+ * lazily initialized
+ */
 fun <R : Any> R.logger(): Lazy<Logger> {
     return lazy { Logger.getLogger(unwrapCompanionClass(this.javaClass).name) }
 }
 
+/**
+ * helper for logger
+ */
 fun <T: Any> unwrapCompanionClass(ofClass: Class<T>): Class<*> {
     return if (ofClass.enclosingClass != null && ofClass.enclosingClass.kotlin.companionObject?.java == ofClass) {
         ofClass.enclosingClass
@@ -16,6 +23,9 @@ fun <T: Any> unwrapCompanionClass(ofClass: Class<T>): Class<*> {
     }
 }
 
+/**
+ * Splits String at given indices
+ */
 fun splitAtAll(s: String, indices: List<Int>): List<String> {
     if (s.isEmpty()) return listOf(s)
 
@@ -33,9 +43,18 @@ fun splitAtAll(s: String, indices: List<Int>): List<String> {
     return list
 }
 
+/**
+ * Safely convert ot non-null value
+ *
+ * @param producers unsafe producers to use in the given oder to create value, if one returns non-null value that value is used
+ * @param default default, safe producer. used if all other producers fail
+ */
 fun <T> coalesce(vararg producers: () -> T?, default: () -> T): T =
     producers.asSequence().map { it() }.filter { it != null }.first() ?: default()
 
+/**
+ * Block with name and list of generic content
+ */
 open class NamedBlock<out T>(val name: String, val content: List<T>)
 
 fun splitNamedBlock(content: String): Pair<String, String?> {

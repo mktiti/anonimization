@@ -5,13 +5,30 @@ import java.util.logging.Level
 
 interface AttributeValue
 
+/**
+ * Represents a column of a record
+ *
+ * @param T the type of data to store
+ */
 abstract class AttributeType<T : AttributeValue> {
+    /**
+     * Parse attribute data from String
+     */
     abstract fun parse(string: String): T
 
+    /**
+     * Convert attribute data to String
+     */
     open fun show(value: T): String = value.toString()
 
+    /**
+     * Cast and convert attribute data to String
+     */
     fun showUnsafe(value: Any): String = show(value as T)
 
+    /**
+     * Check if attribute value is within another attribute value (used for data anonimization by stubbing)
+     */
     abstract fun subsetOf(parent: T, child: T): Boolean
 }
 
@@ -22,11 +39,19 @@ data class Attribute<T : AttributeValue>(val name: String, val type: AttributeTy
     override fun toString() = "{$name: $type}"
 }
 
+/**
+ * Describes the structure of a data input
+ *
+ * @param attributes list of attributes
+ */
 data class RecordDescriptor(val attributes: List<Attribute<*>>) {
     private val log by logger()
 
     constructor(vararg attributes: Attribute<*>) : this(attributes.toList())
 
+    /**
+     * Parses line to attribute values
+     */
     fun parseLine(line: String): List<Any> {
         val split = line.split(',')
         if (split.size != attributes.size) {
@@ -43,6 +68,9 @@ data class RecordDescriptor(val attributes: List<Attribute<*>>) {
         }
     }
 
+    /**
+     * Convert attribute values to String representation
+     */
     fun showLine(tuple: List<Any>): String {
         if (tuple.size != attributes.size) throw AttributeParseException("Tuple size doesn't equal number of attributes")
 

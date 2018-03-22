@@ -6,6 +6,10 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.*
 
+/**
+ * Represents recursive string tree node
+ * Used for structured enum storage and configuration
+ */
 class NamedRecursiveBlock(name: String, content: List<NamedRecursiveBlock>) : NamedBlock<NamedRecursiveBlock>(name, content) {
     override fun toString() =
             if (content.isEmpty())
@@ -15,6 +19,12 @@ class NamedRecursiveBlock(name: String, content: List<NamedRecursiveBlock>) : Na
 
     fun contains(value: String): Boolean = name == value || content.any { it.contains(value) }
 
+    /**
+     * Searches for value down the tree
+     *
+     * @param value the name of the node to search for
+     * @return the node with the correct name if it exists below this node, otherwise null
+     */
     fun find(value: String): NamedRecursiveBlock? {
         return if (name == value) {
             this
@@ -24,9 +34,18 @@ class NamedRecursiveBlock(name: String, content: List<NamedRecursiveBlock>) : Na
     }
 }
 
+/**
+ * Descriptor config file parser singleton
+ */
 internal object DescriptorParser {
     private val log by logger()
 
+    /**
+     * Safely parses the descriptor file
+     *
+     * @param filePath path to the descriptor
+     * @return the config if it can be parsed, otherwise null
+     */
     internal fun parse(filePath: String): RecordDescriptor? {
         val file = File(filePath)
         if (!file.exists()) {
@@ -56,6 +75,12 @@ internal object DescriptorParser {
         return attributes?.let(::RecordDescriptor)
     }
 
+    /**
+     * Safely parses attribute config
+     *
+     * @param content the attribute descriptor lines to parse
+     * @param enums the list of (structured) enums that are defined and can be referenced
+     */
     private fun parseAttributes(content: String, enums: List<NamedRecursiveBlock>): List<Attribute<*>>? {
         try {
             return content.lines()
@@ -70,6 +95,12 @@ internal object DescriptorParser {
         return null
     }
 
+    /**
+     * Parses single attribute config
+     *
+     * @param line the attribute descriptor line to parse
+     * @param enums the list of (structured) enums that are defined and can be referenced
+     */
     private fun parseLine(line: String, enums: List<NamedRecursiveBlock>): Attribute<*> {
         try {
             val tokens: MutableList<String> = LinkedList(line.trim().split("\\s+".toRegex()))
@@ -95,6 +126,9 @@ internal object DescriptorParser {
         }
     }
 
+    /**
+     * Parses integer type column definition
+     */
     private fun parseInt(params: String): IntAttribute =
             fromBrackets(params, parse = { it.toInt() },
                     missing = { IntAttribute() },
@@ -102,6 +136,9 @@ internal object DescriptorParser {
                     right = { IntAttribute(maxValue = it) },
                     both = { min, max -> IntAttribute(minValue = min, maxValue = max) })
 
+    /**
+     * Parses string type column definition
+     */
     private fun parseString(params: String): StringAttribute =
             fromBrackets(params, parse = { it.toInt() },
                     missing = { StringAttribute() },
@@ -109,6 +146,9 @@ internal object DescriptorParser {
                     right = { StringAttribute(maxLength = it) },
                     both = { min, max -> StringAttribute(minLength =  min, maxLength = max) })
 
+    /**
+     * Parses date type column definition
+     */
     private fun parseDate(params: String): DateAttribute {
         val tokens = params.split("[")
         val pattern = if (tokens.size != 2 || tokens[0].isEmpty()) "yyyy-MM-dd" else tokens[0]
@@ -121,6 +161,16 @@ internal object DescriptorParser {
                 both = { min, max -> DateAttribute(pattern, after = min, before = max) })
     }
 
+    /**
+     * Helper to parse range info
+     *
+     * @param params the value range an string
+     * @param parse method to parse single value
+     * @param missing producer if no value is present
+     * @param left producer if only left value if present
+     * @param right producer if only right value if present
+     * @param both producer if string is a complete range
+     */
     private fun <A : AttributeType<*>, T> fromBrackets(
             params: String, parse: (String) -> T?,
             missing: () -> A,
@@ -140,6 +190,9 @@ internal object DescriptorParser {
         }
     }
 
+    /**
+     * Safely parses bracket range notation to optional left and right values (whichever is present)
+     */
     private fun <T> parseBrackets(params: String, parse: (String) -> T?): Pair<T?, T?>? {
         var cleaned = params.trim()
         if (cleaned.startsWith("[")) cleaned = cleaned.drop(1)

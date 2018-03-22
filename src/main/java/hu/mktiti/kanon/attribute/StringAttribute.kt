@@ -2,6 +2,13 @@ package hu.mktiti.kanon.attribute
 
 import kotlin.math.max
 
+/**
+ * Attribute to represent strings
+ *
+ * @property hiddenChar character to use for stubbing representation
+ * @property minLength smallest possible length for value of column
+ * @property maxLength largest possible length for value of column
+ */
 class StringAttribute(
         private val hiddenChar: Char = '*',
         private val minLength: Int = 0,
@@ -29,12 +36,18 @@ class StringAttribute(
 
 }
 
+/**
+ * String value type
+ */
 sealed class StringAttributeValue : AttributeValue {
     abstract operator fun contains(child: StringAttributeValue ): Boolean
 
     abstract operator fun contains(value: String): Boolean
 }
 
+/**
+ * Simple string value
+ */
 class SimpleStringValue(val value: String) : StringAttributeValue() {
     override fun contains(child: StringAttributeValue) = when (child) {
         is SimpleStringValue -> value == child.value
@@ -46,6 +59,9 @@ class SimpleStringValue(val value: String) : StringAttributeValue() {
     override fun toString() = value
 }
 
+/**
+ * Stubbed string value
+ */
 class MaskedValue(val value: String, val hiddenChars: Int, val hiddenChar: Char) : StringAttributeValue() {
 
     val simpleValue: Boolean

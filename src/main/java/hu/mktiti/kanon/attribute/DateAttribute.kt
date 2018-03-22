@@ -3,6 +3,15 @@ package hu.mktiti.kanon.attribute
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
+/**
+ * Attribute to represent dates
+ *
+ * @param formatterString input date format
+ *
+ * @property rangeSeparator input range separator
+ * @property after smallest possible value for column
+ * @property before largest possible value for column
+ */
 class DateAttribute(
         formatterString: String = "yyyy-MM-dd",
         private val rangeSeparator: Char = ':',
@@ -40,12 +49,18 @@ class DateAttribute(
     override fun subsetOf(parent: DateAttributeValue, child: DateAttributeValue) = child in parent
 }
 
+/**
+ * Date value type
+ */
 sealed class DateAttributeValue : AttributeValue {
     abstract operator fun contains(child: DateAttributeValue): Boolean
 
     abstract operator fun contains(value: LocalDate): Boolean
 }
 
+/**
+ * Simple date value containing simple date
+ */
 class SimpleDateValue(val value: LocalDate) : DateAttributeValue() {
     override fun contains(child: DateAttributeValue) = when (child) {
         is SimpleDateValue -> value == child.value
@@ -55,6 +70,9 @@ class SimpleDateValue(val value: LocalDate) : DateAttributeValue() {
     override fun contains(value: LocalDate) = value == this.value
 }
 
+/**
+ * Date range used for data stubbing
+ */
 class DateRangeValue(val min: LocalDate, val max: LocalDate) : DateAttributeValue() {
 
     val simpleValue: Boolean

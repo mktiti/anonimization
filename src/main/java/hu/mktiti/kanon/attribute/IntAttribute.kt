@@ -1,5 +1,11 @@
 package hu.mktiti.kanon.attribute
 
+/**
+ * Attribute to represent integers
+ *
+ * @property minValue smallest possible value for column
+ * @property maxValue largest possible value for column
+ */
 class IntAttribute(
         private val minValue: Int = Int.MIN_VALUE,
         private val maxValue: Int = Int.MAX_VALUE) : AttributeType<IntAttributeValue>() {
@@ -39,12 +45,18 @@ class IntAttribute(
 
 }
 
+/**
+ * Integer value type
+ */
 sealed class IntAttributeValue : AttributeValue {
     abstract operator fun contains(child: IntAttributeValue): Boolean
 
     abstract operator fun contains(value: Int): Boolean
 }
 
+/**
+ * Simple integer value containing simple number
+ */
 class SimpleIntValue(val value: Int) : IntAttributeValue() {
     override fun contains(child: IntAttributeValue) = when (child) {
         is SimpleIntValue -> value == child.value
@@ -54,6 +66,9 @@ class SimpleIntValue(val value: Int) : IntAttributeValue() {
     override fun contains(value: Int) = value == this.value
 }
 
+/**
+ * Range of inter values
+ */
 class IntRangeValue(val start: Int, val end: Int) : IntAttributeValue() {
 
     val simpleValue: Boolean

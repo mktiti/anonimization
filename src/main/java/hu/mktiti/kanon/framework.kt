@@ -2,6 +2,9 @@ package hu.mktiti.kanon
 
 import hu.mktiti.kanon.anonimization.AnonimizationEngine
 
+/**
+ * Framework engine singleton
+ */
 object Framework {
 
     private val log by logger()
