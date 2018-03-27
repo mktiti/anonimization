@@ -43,7 +43,25 @@ class IntAttribute(
 
     override fun subsetOf(parent: IntAttributeValue, child: IntAttributeValue) = child in parent
 
+    override fun smallestGeneralization(values: List<IntAttributeValue>) = simplify(smallest(values), largest(values))
+
+    private fun smallest(values: List<IntAttributeValue>): Int = values.map {
+        when (it) {
+            is SimpleIntValue -> it.value
+            is IntRangeValue  -> it.start
+        }
+    }.min() ?: minValue
+
+    private fun largest(values: List<IntAttributeValue>): Int = values.map {
+        when (it) {
+            is SimpleIntValue -> it.value
+            is IntRangeValue  -> it.end
+        }
+    }.max() ?: maxValue
+
 }
+
+private fun simplify(min: Int, max: Int) = if (min == max) SimpleIntValue(min) else IntRangeValue(min, max)
 
 /**
  * Integer value type

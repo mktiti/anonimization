@@ -47,7 +47,26 @@ class DateAttribute(
             "Date attribute [${if (after == LocalDate.MIN) "" else after.toString()};${if (before == LocalDate.MAX) "" else before.toString()}]"
 
     override fun subsetOf(parent: DateAttributeValue, child: DateAttributeValue) = child in parent
+
+    override fun smallestGeneralization(values: List<DateAttributeValue>) = simplify(smallest(values), largest(values))
+
+    private fun smallest(values: List<DateAttributeValue>): LocalDate = values.map {
+        when (it) {
+            is SimpleDateValue -> it.value
+            is DateRangeValue  -> it.min
+        }
+    }.min() ?: after
+
+    private fun largest(values: List<DateAttributeValue>): LocalDate = values.map {
+        when (it) {
+            is SimpleDateValue -> it.value
+            is DateRangeValue  -> it.max
+        }
+    }.max() ?: before
+
 }
+
+private fun simplify(min: LocalDate, max: LocalDate) = if (min == max) SimpleDateValue(min) else DateRangeValue(min, max)
 
 /**
  * Date value type

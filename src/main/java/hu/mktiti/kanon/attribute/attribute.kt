@@ -30,6 +30,8 @@ abstract class AttributeType<T : AttributeValue> {
      * Check if attribute value is within another attribute value (used for data anonimization by stubbing)
      */
     abstract fun subsetOf(parent: T, child: T): Boolean
+
+    abstract fun smallestGeneralization(values: List<T>): T
 }
 
 class AttributeParseException(message: String) : RuntimeException(message)

@@ -34,12 +34,29 @@ class StringAttribute(
 
     override fun subsetOf(parent: StringAttributeValue, child: StringAttributeValue) = child in parent
 
+    override fun smallestGeneralization(values: List<StringAttributeValue>): StringAttributeValue {
+        if (values.isEmpty()) return SimpleStringValue("")
+
+        val longest = values.maxBy { it.value.length }!!
+        if (values.map { it.value.length }.distinct().size > 1) {
+            return MaskedValue(longest.value, longest.value.length, hiddenChar)
+        }
+
+        for (i in 0 until longest.value.length) {
+            if (values.map { it.toString()[i] }.filter { it != hiddenChar }.distinct().size > 1) {
+                return MaskedValue(longest.value, longest.value.length - i, hiddenChar)
+            }
+        }
+
+        return longest
+    }
+
 }
 
 /**
  * String value type
  */
-sealed class StringAttributeValue : AttributeValue {
+sealed class StringAttributeValue(val value: String) : AttributeValue {
     abstract operator fun contains(child: StringAttributeValue ): Boolean
 
     abstract operator fun contains(value: String): Boolean
@@ -48,7 +65,7 @@ sealed class StringAttributeValue : AttributeValue {
 /**
  * Simple string value
  */
-class SimpleStringValue(val value: String) : StringAttributeValue() {
+class SimpleStringValue(value: String) : StringAttributeValue(value) {
     override fun contains(child: StringAttributeValue) = when (child) {
         is SimpleStringValue -> value == child.value
         is MaskedValue       -> value == child.value && child.simpleValue
@@ -62,7 +79,7 @@ class SimpleStringValue(val value: String) : StringAttributeValue() {
 /**
  * Stubbed string value
  */
-class MaskedValue(val value: String, val hiddenChars: Int, val hiddenChar: Char) : StringAttributeValue() {
+class MaskedValue(value: String, val hiddenChars: Int, val hiddenChar: Char) : StringAttributeValue(value) {
 
     val simpleValue: Boolean
         get() = hiddenChars == 0
