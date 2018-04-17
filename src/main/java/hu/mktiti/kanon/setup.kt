@@ -11,13 +11,17 @@ import java.io.File
  * Program configuration
  *
  * @property descriptor record descriptor
- * @property dataFile file to load data from
- * @property outputFilePath result output path
  */
-internal data class Config(
-        val descriptor: RecordDescriptor,
+sealed class Config(val descriptor: RecordDescriptor)
+
+class FileBasedConfig(
+        descriptor: RecordDescriptor,
         val dataFile: File,
-        val outputFilePath: String)
+        val outputFilePath: String) : Config(descriptor)
+
+class StreamConfig(
+        descriptor: RecordDescriptor,
+        val batchSize: Int) : Config(descriptor)
 
 private enum class ArgOption(
         val fullName: String,
@@ -28,7 +32,9 @@ private enum class ArgOption(
 
     DESCRIPTOR("descriptor", "d", "the data descriptor file", defaultParameter = "descriptor.conf"),
     DATAFILE("datafile", "f", "the data file to be anonymized", defaultParameter = "data.csv"),
-    OUTPUT("output", "o", "anonymization result output filepath", defaultParameter = "output.csv")
+    OUTPUT("output", "o", "anonymization result output filepath", defaultParameter = "output.csv"),
+    USE_STDIO("stdio", "s", "use the standard I/O system for streamed data processing", defaultParameter = "", withParameter = false),
+    BATCH_SIZE("batch-size", "b", "batch size for stream processing", defaultParameter = "100", withParameter = false)
 
 }
 
@@ -57,14 +63,23 @@ internal object Parser {
             val commandLine = DefaultParser().parse(createCliSetup(), args)
 
             val descriptor = DescriptorParser.parse(getParameter(commandLine, ArgOption.DESCRIPTOR)) ?: return null
-            val dataFile = File(getParameter(commandLine, ArgOption.DATAFILE))
+            val useStdIO = commandLine.hasOption(ArgOption.USE_STDIO.fullName)
 
-            if (!dataFile.exists()) {
-                log.warning("datafile '${dataFile.absoluteFile}' doesn't exist")
-                return null
+            if (useStdIO) {
+                val batchSize = getParameter(commandLine, ArgOption.BATCH_SIZE).toIntOrNull() ?: throw ParseException("Batch size must be an integer");
+                if (batchSize <= 1) throw ParseException("Batch size must be > 1")
+
+                return StreamConfig(descriptor, batchSize)
+            } else {
+                val dataFile = File(getParameter(commandLine, ArgOption.DATAFILE))
+
+                if (!dataFile.exists()) {
+                    log.warning("datafile '${dataFile.absoluteFile}' doesn't exist")
+                    return null
+                }
+
+                return FileBasedConfig(descriptor, dataFile, getParameter(commandLine, ArgOption.OUTPUT))
             }
-
-            return Config(descriptor, dataFile, getParameter(commandLine, ArgOption.OUTPUT))
         } catch (pe: ParseException) {
             log.warning("Invalid command line arguments!")
             log.warning(pe.message)

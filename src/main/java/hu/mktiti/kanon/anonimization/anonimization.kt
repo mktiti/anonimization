@@ -1,19 +1,26 @@
 package hu.mktiti.kanon.anonimization
 
-import hu.mktiti.kanon.attribute.Attribute
-import hu.mktiti.kanon.attribute.AttributeType
-import hu.mktiti.kanon.attribute.AttributeValue
-import hu.mktiti.kanon.attribute.RecordDescriptor
+import hu.mktiti.kanon.StreamConfig
+import hu.mktiti.kanon.attribute.*
 import hu.mktiti.kanon.logger
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.io.OutputStream
 import java.util.logging.Level
 
 /**
  * Data anonimization algoritm (strategy pattern)
  */
 interface FullDataAnonimizationAlgorithm {
-
     fun anonimize()
+}
 
+interface StreamAnonimizationAlgorithm {
+    fun init(config: StreamConfig, outputStream: OutputStream)
+
+    fun processRow(row: Record)
+
+    fun close()
 }
 
 typealias Record = List<Any>
@@ -26,6 +33,28 @@ typealias Data = List<Record>
 object AnonimizationEngine {
 
     private val log by logger()
+
+    fun anonimizeStream(config: StreamConfig) {
+        StreamAnonimizator.init(config, System.out)
+
+        BufferedReader(InputStreamReader(System.`in`)).useLines {
+            try {
+                it.forEach { line ->
+                    if (!line.trimStart().startsWith("#") && line.isNotBlank()) {
+                        StreamAnonimizator.processRow(config.descriptor.parseLine(line) as? Record
+                                ?: throw AttributeParseException("Record type mismatch"))
+                    }
+                }
+
+                log.info("Input stream closed")
+            } catch (ape: AttributeParseException) {
+                log.log(Level.WARNING, "Failed to parse input line", ape)
+                log.info("Stream anonimization finished with an error")
+            }
+        }
+
+        StreamAnonimizator.close()
+    }
 
     /**
      * Calculate k-anonimity of the data

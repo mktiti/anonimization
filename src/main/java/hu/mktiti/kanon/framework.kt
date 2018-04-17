@@ -1,6 +1,9 @@
 package hu.mktiti.kanon
 
 import hu.mktiti.kanon.anonimization.AnonimizationEngine
+import java.io.BufferedInputStream
+import java.io.FileInputStream
+import java.io.InputStream
 
 /**
  * Framework engine singleton
@@ -18,20 +21,35 @@ object Framework {
             return
         }
 
-        config.dataFile.useLines { lines ->
-            val data = lines
-                        .filterNot(String::isBlank)
-                        .filterNot { it.trimStart().startsWith("#") }
-                        .map(config.descriptor::parseLine).toList()
+        when (config) {
+            is StreamConfig -> {
+                AnonimizationEngine.anonimizeStream(config)
+            }
 
-            println("K-Anonimity: ${AnonimizationEngine.calculateKAnonimity(config.descriptor, data)}")
+            is FileBasedConfig -> {
+                config.dataFile.useLines { lines ->
+                    val data = lines
+                            .filterNot(String::isBlank)
+                            .filterNot { it.trimStart().startsWith("#") }
+                            .map(config.descriptor::parseLine).toList()
 
-            println(data.joinToString(separator = "\n", transform = config.descriptor::showLine))
+                    println("K-Anonimity: ${AnonimizationEngine.calculateKAnonimity(config.descriptor, data)}")
+
+                    println(data.joinToString(separator = "\n", transform = config.descriptor::showLine))
+                }
+            }
         }
 
     }
 }
 
 fun main(args: Array<String>) {
-    Framework.main(args)
+    //Framework.main(args)
+
+    // Mock start from IDE
+    FileInputStream("data.csv").use {
+        System.setIn(it)
+        Framework.main(args)
+    }
+
 }
