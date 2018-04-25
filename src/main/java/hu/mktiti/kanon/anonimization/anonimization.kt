@@ -16,8 +16,6 @@ interface FullDataAnonimizationAlgorithm {
 }
 
 interface StreamAnonimizationAlgorithm {
-    fun init(config: StreamConfig, outputStream: OutputStream)
-
     fun processRow(row: Record)
 
     fun close()
@@ -35,13 +33,13 @@ object AnonimizationEngine {
     private val log by logger()
 
     fun anonimizeStream(config: StreamConfig) {
-        StreamAnonimizator.init(config, System.out)
+        val strategy = StreamAnonimizator(config, System.out)
 
         BufferedReader(InputStreamReader(System.`in`)).useLines {
             try {
                 it.forEach { line ->
                     if (!line.trimStart().startsWith("#") && line.isNotBlank()) {
-                        StreamAnonimizator.processRow(config.descriptor.parseLine(line) as? Record
+                        strategy.processRow(config.descriptor.parseLine(line) as? Record
                                 ?: throw AttributeParseException("Record type mismatch"))
                     }
                 }
@@ -53,7 +51,7 @@ object AnonimizationEngine {
             }
         }
 
-        StreamAnonimizator.close()
+        strategy.close()
     }
 
     /**
