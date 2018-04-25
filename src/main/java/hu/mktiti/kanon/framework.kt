@@ -1,9 +1,7 @@
 package hu.mktiti.kanon
 
 import hu.mktiti.kanon.anonimization.AnonimizationEngine
-import java.io.BufferedInputStream
-import java.io.FileInputStream
-import java.io.InputStream
+import java.io.*
 
 /**
  * Framework engine singleton
@@ -46,10 +44,14 @@ object Framework {
 fun main(args: Array<String>) {
     //Framework.main(args)
 
-    // Mock start from IDE
-    FileInputStream("data.csv").use {
-        System.setIn(it)
-        Framework.main(args)
+    // Start with mock input data stream from IDE
+    // Same as piping 'data.csv' into the program
+    FileInputStream("data.csv").use { inStream ->
+        PrintStream(FileOutputStream("log.txt")).use { logStream ->
+            System.setIn(inStream)
+            System.setErr(logStream)
+            Framework.main(args)
+        }
     }
 
 }

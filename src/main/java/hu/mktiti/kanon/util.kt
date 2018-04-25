@@ -1,5 +1,6 @@
 package hu.mktiti.kanon
 
+import java.lang.instrument.ClassFileTransformer
 import java.util.*
 import java.util.logging.Logger
 import kotlin.reflect.full.companionObject
@@ -52,10 +53,24 @@ fun splitAtAll(s: String, indices: List<Int>): List<String> {
 fun <T> coalesce(vararg producers: () -> T?, default: () -> T): T =
     producers.asSequence().map { it() }.filter { it != null }.first() ?: default()
 
+fun <T> samePair(value: T): Pair<T, T> = Pair(value, value)
+
+open class Block<out K, out V>(val key: K, val content: List<V>)
+
 /**
  * Block with name and list of generic content
  */
-open class NamedBlock<out T>(val name: String, val content: List<T>)
+open class NamedBlock<out T>(name: String, content: List<T>) : Block<String, T>(name, content)
+
+open class RecursiveBlock<K>(key: K, content: List<RecursiveBlock<K>>) : Block<K, RecursiveBlock<K>>(key, content) {
+    fun <T> map(transform: (K) -> T): RecursiveBlock<T> = RecursiveBlock(transform(key), content.map { it.map(transform) })
+
+    fun contains(node: RecursiveBlock<K>, test: (RecursiveBlock<K>, RecursiveBlock<K>) -> Boolean): Boolean
+            = test(this, node) || content.any { it.contains(node, test) }
+
+    fun <R> contains(value: R, transformer: (RecursiveBlock<K>) -> R): Boolean
+            = transformer(this) == value || content.any { it.contains(value, transformer) }
+}
 
 fun splitNamedBlock(content: String): Pair<String, String?> {
     var cleaned = content.trim()

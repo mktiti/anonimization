@@ -12,16 +12,19 @@ import java.io.File
  *
  * @property descriptor record descriptor
  */
-sealed class Config(val descriptor: RecordDescriptor)
+sealed class Config(val descriptor: RecordDescriptor,
+                    val kValue: Int)
 
 class FileBasedConfig(
         descriptor: RecordDescriptor,
+        kValue: Int,
         val dataFile: File,
-        val outputFilePath: String) : Config(descriptor)
+        val outputFilePath: String) : Config(descriptor, kValue)
 
 class StreamConfig(
         descriptor: RecordDescriptor,
-        val batchSize: Int) : Config(descriptor)
+        kValue: Int,
+        val batchSize: Int) : Config(descriptor, kValue)
 
 private enum class ArgOption(
         val fullName: String,
@@ -34,7 +37,8 @@ private enum class ArgOption(
     DATAFILE("datafile", "f", "the data file to be anonymized", defaultParameter = "data.csv"),
     OUTPUT("output", "o", "anonymization result output filepath", defaultParameter = "output.csv"),
     USE_STDIO("stdio", "s", "use the standard I/O system for streamed data processing", defaultParameter = "", withParameter = false),
-    BATCH_SIZE("batch-size", "b", "batch size for stream processing", defaultParameter = "100", withParameter = false)
+    BATCH_SIZE("batch-size", "b", "batch size for stream processing", defaultParameter = "100"),
+    K_VALUE("k-value", "k", "K anonymizational value to reach", defaultParameter = "50")
 
 }
 
@@ -63,13 +67,14 @@ internal object Parser {
             val commandLine = DefaultParser().parse(createCliSetup(), args)
 
             val descriptor = DescriptorParser.parse(getParameter(commandLine, ArgOption.DESCRIPTOR)) ?: return null
+            val kValue = getIntParameter(commandLine, ArgOption.K_VALUE)
             val useStdIO = commandLine.hasOption(ArgOption.USE_STDIO.fullName)
 
             if (useStdIO) {
-                val batchSize = getParameter(commandLine, ArgOption.BATCH_SIZE).toIntOrNull() ?: throw ParseException("Batch size must be an integer");
-                if (batchSize <= 1) throw ParseException("Batch size must be > 1")
+                val batchSize = getIntParameter(commandLine, ArgOption.BATCH_SIZE)
+                if (batchSize < kValue) throw ParseException("Batch size must be larger than, or equal to the desired K value")
 
-                return StreamConfig(descriptor, batchSize)
+                return StreamConfig(descriptor, kValue, batchSize)
             } else {
                 val dataFile = File(getParameter(commandLine, ArgOption.DATAFILE))
 
@@ -78,13 +83,21 @@ internal object Parser {
                     return null
                 }
 
-                return FileBasedConfig(descriptor, dataFile, getParameter(commandLine, ArgOption.OUTPUT))
+                return FileBasedConfig(descriptor, kValue, dataFile, getParameter(commandLine, ArgOption.OUTPUT))
             }
         } catch (pe: ParseException) {
-            log.warning("Invalid command line arguments!")
+            log.warning("Invalid command line argument!")
             log.warning(pe.message)
             return null
         }
+    }
+
+    private fun getIntParameter(commandLine: CommandLine, option: ArgOption, range: Pair<Int?, Int?> = Pair(1, null)): Int {
+        val value = getParameter(commandLine, option).toIntOrNull() ?: throw ParseException("Invalid number for parameter '${option.fullName}'")
+        val (min, max) = range
+        if (min != null && value < min) throw ParseException("Value for '${option.fullName}' must be >= $min")
+        if (max != null && value > max) throw ParseException("Value for '${option.fullName}' must be <= $max")
+        return value
     }
 
     private fun getParameter(commandLine: CommandLine, option: ArgOption): String =
