@@ -51,6 +51,10 @@ class StringAttribute(
         return longest
     }
 
+    override fun split(partition: Partition<StringAttributeValue>, kValue: Int): PartitionSplit<StringAttributeValue>? {
+        return null
+    }
+
 }
 
 /**
@@ -60,6 +64,8 @@ sealed class StringAttributeValue(val value: String) : AttributeValue {
     abstract operator fun contains(child: StringAttributeValue ): Boolean
 
     abstract operator fun contains(value: String): Boolean
+
+    abstract fun length(): Int
 }
 
 /**
@@ -74,12 +80,14 @@ class SimpleStringValue(value: String) : StringAttributeValue(value) {
     override fun contains(value: String) = value == this.value
 
     override fun toString() = value
+
+    override fun length() = value.length
 }
 
 /**
  * Stubbed string value
  */
-class MaskedValue(value: String, val hiddenChars: Int, val hiddenChar: Char) : StringAttributeValue(value) {
+class MaskedValue(value: String, private val hiddenChars: Int, private val hiddenChar: Char) : StringAttributeValue(value) {
 
     val simpleValue: Boolean
         get() = hiddenChars == 0
@@ -96,4 +104,5 @@ class MaskedValue(value: String, val hiddenChars: Int, val hiddenChar: Char) : S
 
     override fun toString() = value.dropLast(hiddenChars) + (hiddenChar.toString().repeat(hiddenChars))
 
+    override fun length() = max(value.length, hiddenChars)
 }

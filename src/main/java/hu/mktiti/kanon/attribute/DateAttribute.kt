@@ -2,6 +2,7 @@ package hu.mktiti.kanon.attribute
 
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 /**
  * Attribute to represent dates
@@ -15,13 +16,10 @@ import java.time.format.DateTimeFormatter
 class DateAttribute(
         formatterString: String = "yyyy-MM-dd",
         private val rangeSeparator: Char = ':',
-        private val after: LocalDate = LocalDate.MIN,
-        private val before: LocalDate = LocalDate.MAX) : AttributeType<DateAttributeValue>() {
+        after: LocalDate = LocalDate.MIN,
+        before: LocalDate = LocalDate.MAX) : RangeAttribute<LocalDate, DateAttributeValue>(after, before) {
 
     private val formatter = DateTimeFormatter.ofPattern(formatterString)
-
-    private fun safeInRange(value: LocalDate): LocalDate
-            = if (value in after..before) value else throw AttributeParseException("Date value [$value] out of range [$after;$before]")
 
     override fun parse(string: String): DateAttributeValue {
         val cleaned = string.trim()
@@ -44,64 +42,37 @@ class DateAttribute(
     }
 
     override fun toString() =
-            "Date attribute [${if (after == LocalDate.MIN) "" else after.toString()};${if (before == LocalDate.MAX) "" else before.toString()}]"
+            "Date attribute [${if (minValue == LocalDate.MIN) "" else minValue.toString()};${if (maxValue == LocalDate.MAX) "" else maxValue.toString()}]"
 
-    override fun subsetOf(parent: DateAttributeValue, child: DateAttributeValue) = child in parent
+    override fun simpleValue(value: LocalDate) = SimpleDateValue(value)
 
-    override fun smallestGeneralization(values: List<DateAttributeValue>) = simplify(smallest(values), largest(values))
-
-    private fun smallest(values: List<DateAttributeValue>): LocalDate = values.map {
-        when (it) {
-            is SimpleDateValue -> it.value
-            is DateRangeValue  -> it.min
-        }
-    }.min() ?: after
-
-    private fun largest(values: List<DateAttributeValue>): LocalDate = values.map {
-        when (it) {
-            is SimpleDateValue -> it.value
-            is DateRangeValue  -> it.max
-        }
-    }.max() ?: before
+    override fun rangeValue(min: LocalDate, max: LocalDate) = DateRangeValue(min, max)
 
 }
-
-private fun simplify(min: LocalDate, max: LocalDate) = if (min == max) SimpleDateValue(min) else DateRangeValue(min, max)
 
 /**
  * Date value type
  */
-sealed class DateAttributeValue : AttributeValue {
-    abstract operator fun contains(child: DateAttributeValue): Boolean
-
-    abstract operator fun contains(value: LocalDate): Boolean
+sealed class DateAttributeValue : AttributeValue, RangeAttributeValue<LocalDate> {
+    override fun rangeSize(): Long = ChronoUnit.DAYS.between(max(), min()) + 1
 }
 
 /**
  * Simple date value containing simple date
  */
 class SimpleDateValue(val value: LocalDate) : DateAttributeValue() {
-    override fun contains(child: DateAttributeValue) = when (child) {
-        is SimpleDateValue -> value == child.value
-        is DateRangeValue  -> child.min == value && child.simpleValue
-    }
+    override fun min() = value
 
-    override fun contains(value: LocalDate) = value == this.value
+    override fun max() = value
+
 }
 
 /**
  * Date range used for data stubbing
  */
 class DateRangeValue(val min: LocalDate, val max: LocalDate) : DateAttributeValue() {
+    override fun min() = min
 
-    val simpleValue: Boolean
-        get() = min == max
-
-    override operator fun contains(child: DateAttributeValue) = when (child) {
-        is SimpleDateValue -> child.value in this
-        is DateRangeValue  -> child.min in this && child.max in this
-    }
-
-    override operator fun contains(value: LocalDate) = value in min..max
+    override fun max() = max
 
 }

@@ -7,11 +7,8 @@ package hu.mktiti.kanon.attribute
  * @property maxValue largest possible value for column
  */
 class IntAttribute(
-        private val minValue: Int = Int.MIN_VALUE,
-        private val maxValue: Int = Int.MAX_VALUE) : AttributeType<IntAttributeValue>() {
-
-    private fun safeInRange(value: Int): Int
-            = if (value in minValue..maxValue) value else throw AttributeParseException("Int value [$value] out of range [$minValue;$maxValue]")
+        minValue: Int = Int.MIN_VALUE,
+        maxValue: Int = Int.MAX_VALUE) : RangeAttribute<Int, IntAttributeValue>(minValue, maxValue) {
 
     override fun parse(string: String): IntAttributeValue {
         val cleaned = string.trim()
@@ -41,62 +38,32 @@ class IntAttribute(
         is IntRangeValue  -> "${value.start} : ${value.end}"
     }
 
-    override fun subsetOf(parent: IntAttributeValue, child: IntAttributeValue) = child in parent
+    override fun simpleValue(value: Int) = SimpleIntValue(value)
 
-    override fun smallestGeneralization(values: List<IntAttributeValue>) = simplify(smallest(values), largest(values))
-
-    private fun smallest(values: List<IntAttributeValue>): Int = values.map {
-        when (it) {
-            is SimpleIntValue -> it.value
-            is IntRangeValue  -> it.start
-        }
-    }.min() ?: minValue
-
-    private fun largest(values: List<IntAttributeValue>): Int = values.map {
-        when (it) {
-            is SimpleIntValue -> it.value
-            is IntRangeValue  -> it.end
-        }
-    }.max() ?: maxValue
-
+    override fun rangeValue(min: Int, max: Int) = IntRangeValue(min, max)
 }
-
-private fun simplify(min: Int, max: Int) = if (min == max) SimpleIntValue(min) else IntRangeValue(min, max)
 
 /**
  * Integer value type
  */
-sealed class IntAttributeValue : AttributeValue {
-    abstract operator fun contains(child: IntAttributeValue): Boolean
-
-    abstract operator fun contains(value: Int): Boolean
+sealed class IntAttributeValue : RangeAttributeValue<Int> {
+    override fun rangeSize(): Long = max() - min() + 1L
 }
 
 /**
  * Simple integer value containing simple number
  */
 class SimpleIntValue(val value: Int) : IntAttributeValue() {
-    override fun contains(child: IntAttributeValue) = when (child) {
-        is SimpleIntValue -> value == child.value
-        is IntRangeValue  -> child.start == value && child.simpleValue
-    }
+    override fun min() = value
 
-    override fun contains(value: Int) = value == this.value
+    override fun max() = value
 }
 
 /**
  * Range of inter values
  */
 class IntRangeValue(val start: Int, val end: Int) : IntAttributeValue() {
+    override fun min() = start
 
-    val simpleValue: Boolean
-        get() = start == end
-
-    override operator fun contains(child: IntAttributeValue) = when (child) {
-        is SimpleIntValue -> child.value in this
-        is IntRangeValue  -> child.start in this && child.end in this
-    }
-
-    override operator fun contains(value: Int) = value in start..end
-
+    override fun max() = end
 }

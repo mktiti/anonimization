@@ -5,6 +5,8 @@ import java.util.logging.Level
 
 interface AttributeValue
 
+data class PartitionSplit<out T : AttributeValue>(val partitionA: Partition<T>, val partitionB: Partition<T>, val informationGainValue: Double)
+
 /**
  * Represents a column of a record
  *
@@ -32,6 +34,10 @@ abstract class AttributeType<T : AttributeValue> {
     abstract fun subsetOf(parent: T, child: T): Boolean
 
     abstract fun smallestGeneralization(values: List<T>): T
+
+    internal fun partition(values: List<T>): Partition<T> = Partition(values, smallestGeneralization(values))
+
+    abstract fun split(partition: Partition<T>, kValue: Int): PartitionSplit<T>?
 }
 
 class AttributeParseException(message: String) : RuntimeException(message)
@@ -40,6 +46,8 @@ data class Attribute<T : AttributeValue>(val name: String, val type: AttributeTy
 
     override fun toString() = "{$name: $type}"
 }
+
+data class Partition<out T : AttributeValue>(val values: List<T>, val aggregateValue: T)
 
 /**
  * Describes the structure of a data input
