@@ -11,6 +11,9 @@ import java.util.*
  * Used for structured enum storage and configuration
  */
 class NamedRecursiveBlock(name: String, content: List<NamedRecursiveBlock>) : NamedBlock<NamedRecursiveBlock>(name, content) {
+    val name: String
+        get() = key
+
     override fun toString() =
             if (content.isEmpty())
                 name
@@ -32,6 +35,8 @@ class NamedRecursiveBlock(name: String, content: List<NamedRecursiveBlock>) : Na
             content.find { it.name == value }
         }
     }
+
+    fun <T> map(transform: (String) -> T): RecursiveBlock<T> = RecursiveBlock(transform(name), content.map { it.map(transform) })
 }
 
 /**
