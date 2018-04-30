@@ -42,8 +42,9 @@ abstract class AttributeType<T : AttributeValue> {
 
 class AttributeParseException(message: String) : RuntimeException(message)
 
-data class Attribute<T : AttributeValue>(val name: String, val type: AttributeType<T>, val quasiIdentifier: Boolean, val secret: Boolean) {
+enum class AttributeQualifier { NONE, QUASI, SECRET, SECRET_KEY }
 
+data class Attribute<T : AttributeValue>(val name: String, val type: AttributeType<T>, val qualifier: AttributeQualifier) {
     override fun toString() = "{$name: $type}"
 }
 

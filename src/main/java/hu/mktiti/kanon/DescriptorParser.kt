@@ -120,8 +120,17 @@ internal object DescriptorParser {
         try {
             val tokens: MutableList<String> = LinkedList(line.trim().split("\\s+".toRegex()))
             val name = tokens.removeAt(0)
-            val quasi = tokens.remove("quasi")
-            val secret = tokens.remove("secret")
+
+            val qualifier = when (tokens.first()) {
+                "quasi" -> AttributeQualifier.QUASI
+                "secret" -> AttributeQualifier.SECRET
+                "secret-key" -> AttributeQualifier.SECRET_KEY
+                else -> AttributeQualifier.NONE
+            }
+            if (qualifier != AttributeQualifier.NONE) {
+                tokens.removeAt(0)
+            }
+
             val type = tokens.removeAt(0)
 
             val typeParams = tokens.joinToString(prefix = "", separator = "", postfix = "")
@@ -136,7 +145,7 @@ internal object DescriptorParser {
                     throw ConfigException("unsupported type '$type'")
                 }
             }
-            return Attribute(name, parsed, quasi, secret)
+            return Attribute(name, parsed, qualifier)
 
         } catch (ioe: IndexOutOfBoundsException) {
             throw ConfigException("Invalid line '$line', parameter missing")

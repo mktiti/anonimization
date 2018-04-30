@@ -75,7 +75,7 @@ object AnonimizationEngine {
     fun splitToEqClasses(descriptor: RecordDescriptor, data: List<Record>): List<Data> {
         val quasiIndexes = descriptor.attributes
                                 .mapIndexed(::Pair)
-                                .filter { (_, a) -> a.quasiIdentifier }
+                                .filter { (_, a) -> a.qualifier == AttributeQualifier.QUASI }
                                 .map(Pair<Int, Attribute<*>>::first)
 
         val newBlocks: MutableList<Data> = mutableListOf()

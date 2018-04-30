@@ -2,6 +2,7 @@ package hu.mktiti.kanon.anonimization
 
 import hu.mktiti.kanon.StreamConfig
 import hu.mktiti.kanon.attribute.Attribute
+import hu.mktiti.kanon.attribute.AttributeQualifier
 import hu.mktiti.kanon.attribute.AttributeValue
 import hu.mktiti.kanon.attribute.Partition
 import hu.mktiti.kanon.logger
@@ -29,7 +30,9 @@ class StreamAnonimizator(private val config: StreamConfig, outputStream: OutputS
     private fun processBatch() {
         currentBatch.reverse()
 
-        val bestSplit = config.descriptor.attributes.mapIndexed { i, attribute ->
+        val bestSplit = config.descriptor.attributes.filter {
+            it.qualifier == AttributeQualifier.QUASI
+        }.mapIndexed { i, attribute ->
             val partition = attribute.type.partition(currentBatch.map { it[i] } as List<Nothing>) as Partition<Nothing>
             val split = attribute.type.split(partition, config.kValue)
             i to (split ?: return@mapIndexed null)
