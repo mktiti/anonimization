@@ -67,8 +67,16 @@ internal object DescriptorParser {
         }
 
         val enums = list.firstOrNull { it.name == "Enums" }?.content ?: emptyList()
+
+        val (hierarchicEnums, flatEnumsTree) = enums.partition { it.content.any { child -> child.content.isNotEmpty() } }
+        val flatEnums = flatEnumsTree.map { it.name to it.content.map(NamedRecursiveBlock::name) }
+
         log.info("Hierarchical enum types:")
-        enums.map(NamedRecursiveBlock::toString).forEach(log::info)
+        hierarchicEnums.map(NamedRecursiveBlock::toString).forEach(log::info)
+
+        log.info("Flat enum types:")
+        flatEnums.map { (name, values) -> values.joinToString(prefix = "$name: {", postfix = "}") }
+                 .forEach(log::info)
 
         val attributesBlock = list.firstOrNull { it.name == "Attributes" }
         if (attributesBlock == null) {
@@ -76,7 +84,7 @@ internal object DescriptorParser {
             return null
         }
 
-        val attributes = parseAttributes(attributesBlock.content.joinToString(separator = "\n") { it.name }, enums)
+        val attributes = parseAttributes(attributesBlock.content.joinToString(separator = "\n") { it.name }, hierarchicEnums, flatEnums)
         return attributes?.let(::RecordDescriptor)
     }
 
@@ -84,14 +92,15 @@ internal object DescriptorParser {
      * Safely parses attribute config
      *
      * @param content the attribute descriptor lines to parse
-     * @param enums the list of (structured) enums that are defined and can be referenced
+     * @param hierarchicEnums the list of (structured) hierarchic enums that are defined and can be referenced
+     * @param flatEnums the list of flat enums that are defined and can be referenced
      */
-    private fun parseAttributes(content: String, enums: List<NamedRecursiveBlock>): List<Attribute<*>>? {
+    private fun parseAttributes(content: String, hierarchicEnums: List<NamedRecursiveBlock>, flatEnums: List<Pair<String, List<String>>>): List<Attribute<*>>? {
         try {
             return content.lines()
                         .map(String::trim)
                         .filter { it.isNotEmpty() && !it.startsWith("#") }
-                        .map { parseLine(it, enums) }
+                        .map { parseLine(it, hierarchicEnums, flatEnums) }
         } catch (ce: ConfigException) {
             log.warning("Unable to correctly parse attributes")
             log.warning(ce.message)
@@ -104,9 +113,10 @@ internal object DescriptorParser {
      * Parses single attribute config
      *
      * @param line the attribute descriptor line to parse
-     * @param enums the list of (structured) enums that are defined and can be referenced
+     * @param hierarchicEnums the list of (structured) hierarchic enums that are defined and can be referenced
+     * @param flatEnums the list of flat flat enums that are defined and can be referenced
      */
-    private fun parseLine(line: String, enums: List<NamedRecursiveBlock>): Attribute<*> {
+    private fun parseLine(line: String, hierarchicEnums: List<NamedRecursiveBlock>, flatEnums: List<Pair<String, List<String>>>): Attribute<*> {
         try {
             val tokens: MutableList<String> = LinkedList(line.trim().split("\\s+".toRegex()))
             val name = tokens.removeAt(0)
@@ -121,7 +131,9 @@ internal object DescriptorParser {
                 "String"    -> parseString(typeParams)
                 "Date"      -> parseDate(typeParams)
                 else        -> {
-                    enums.find { it.name == type }?.let(::HierarchicAttribute) ?: throw ConfigException("unsupported type '$type'")
+                    hierarchicEnums.find { it.name == type }?.let(::HierarchicAttribute) ?:
+                    flatEnums.find { it.first == type }?.let { EnumAttribute(it.second) } ?:
+                    throw ConfigException("unsupported type '$type'")
                 }
             }
             return Attribute(name, parsed, quasi, secret)
