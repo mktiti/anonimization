@@ -21,7 +21,7 @@ object Framework {
 
         when (config) {
             is StreamConfig -> {
-                AnonimizationEngine.anonimizeStream(config)
+                AnonimizationEngine.anonymizeStream(config)
             }
 
             is FileBasedConfig -> {
@@ -45,7 +45,8 @@ fun main(args: Array<String>) {
     //Framework.main(args)
 
     // Start with mock input data stream from IDE
-    // Same as piping 'data.csv' into the program
+    // Same as piping 'data.csv' into the program and redirecting std err to 'log.txt'
+    // cat data.csv | java hu.mktiti.kanon.Framework 2> log.txt
     FileInputStream("data.csv").use { inStream ->
         PrintStream(FileOutputStream("log.txt")).use { logStream ->
             System.setIn(inStream)
