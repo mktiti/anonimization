@@ -1,10 +1,12 @@
 package hu.mktiti.kanon
 
 import hu.mktiti.kanon.attribute.*
+import org.funktionale.either.Either
 import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.*
+import kotlin.collections.ArrayList
 
 /**
  * Represents recursive string tree node
@@ -32,7 +34,7 @@ class NamedRecursiveBlock(name: String, content: List<NamedRecursiveBlock>) : Na
         return if (name == value) {
             this
         } else {
-            content.find { it.name == value }
+            content.asSequence().map { it.find(value) }.filterNotNull().firstOrNull()
         }
     }
 
@@ -85,7 +87,7 @@ internal object DescriptorParser {
         }
 
         val attributes = parseAttributes(attributesBlock.content.joinToString(separator = "\n") { it.name }, hierarchicEnums, flatEnums)
-        return attributes?.let(::RecordDescriptor)
+        return attributes?.let { (quasis, secrets) -> RecordDescriptor(quasis, secrets) }
     }
 
     /**
@@ -95,12 +97,20 @@ internal object DescriptorParser {
      * @param hierarchicEnums the list of (structured) hierarchic enums that are defined and can be referenced
      * @param flatEnums the list of flat enums that are defined and can be referenced
      */
-    private fun parseAttributes(content: String, hierarchicEnums: List<NamedRecursiveBlock>, flatEnums: List<Pair<String, List<String>>>): List<Attribute<*>>? {
+    private fun parseAttributes(content: String, hierarchicEnums: List<NamedRecursiveBlock>, flatEnums: List<Pair<String, List<String>>>)
+            : Pair<List<QuasiAttribute<*>>, List<SecretAttribute>>? {
         try {
-            return content.lines()
-                        .map(String::trim)
-                        .filter { it.isNotEmpty() && !it.startsWith("#") }
-                        .map { parseLine(it, hierarchicEnums, flatEnums) }
+            val attributes =  content.lines()
+                                     .map(String::trim)
+                                     .filter { it.isNotEmpty() && !it.trimStart().startsWith("#") }
+                                     .mapIndexed { i, line -> parseLine(line, i, hierarchicEnums, flatEnums) }
+
+            val quasis: MutableList<QuasiAttribute<*>> = ArrayList(attributes.size)
+            val secrets: MutableList<SecretAttribute> = ArrayList(attributes.size)
+
+            attributes.map { it.fold(quasis::add, secrets::add) }
+
+            return quasis to secrets
         } catch (ce: ConfigException) {
             log.warning("Unable to correctly parse attributes")
             log.warning(ce.message)
@@ -113,43 +123,49 @@ internal object DescriptorParser {
      * Parses single attribute config
      *
      * @param line the attribute descriptor line to parse
+     * @param prevCount number of attributes already parsed (position of the attribute)
      * @param hierarchicEnums the list of (structured) hierarchic enums that are defined and can be referenced
      * @param flatEnums the list of flat flat enums that are defined and can be referenced
      */
-    private fun parseLine(line: String, hierarchicEnums: List<NamedRecursiveBlock>, flatEnums: List<Pair<String, List<String>>>): Attribute<*> {
+    private fun parseLine(line: String, prevCount: Int, hierarchicEnums: List<NamedRecursiveBlock>, flatEnums: List<Pair<String, List<String>>>)
+            : Either<QuasiAttribute<*>, SecretAttribute> {
         try {
             val tokens: MutableList<String> = LinkedList(line.trim().split("\\s+".toRegex()))
             val name = tokens.removeAt(0)
+            val qualifier = tokens.removeAt(0)
 
-            val qualifier = when (tokens.first()) {
-                "quasi" -> AttributeQualifier.QUASI
-                "secret" -> AttributeQualifier.SECRET
-                "secret-key" -> AttributeQualifier.SECRET_KEY
-                else -> AttributeQualifier.NONE
+            return when (qualifier) {
+                "secret" -> Either.right(SecretAttribute(prevCount, name))
+                "quasi" -> Either.left(parseQuasi(prevCount, name, tokens, hierarchicEnums, flatEnums))
+                else -> throw ConfigException("Unrecognised attribute qualifier '$qualifier'")
             }
-            if (qualifier != AttributeQualifier.NONE) {
-                tokens.removeAt(0)
-            }
-
-            val type = tokens.removeAt(0)
-
-            val typeParams = tokens.joinToString(prefix = "", separator = "", postfix = "")
-
-            val parsed = when (type) {
-                "Int"       -> parseInt(typeParams)
-                "String"    -> parseString(typeParams)
-                "Date"      -> parseDate(typeParams)
-                else        -> {
-                    hierarchicEnums.find { it.name == type }?.let(::HierarchicAttribute) ?:
-                    flatEnums.find { it.first == type }?.let { EnumAttribute(it.second) } ?:
-                    throw ConfigException("unsupported type '$type'")
-                }
-            }
-            return Attribute(name, parsed, qualifier)
 
         } catch (ioe: IndexOutOfBoundsException) {
             throw ConfigException("Invalid line '$line', parameter missing")
         }
+    }
+
+    private fun parseQuasi(position: Int,
+                           name: String,
+                           tokens: MutableList<String>,
+                           hierarchicEnums: List<NamedRecursiveBlock>,
+                           flatEnums: List<Pair<String, List<String>>>): QuasiAttribute<*> {
+
+        val type = tokens.removeAt(0)
+
+        val typeParams = tokens.joinToString(prefix = "", separator = "", postfix = "")
+
+        val parsed = when (type) {
+            "Int"       -> parseInt(typeParams)
+            "String"    -> parseString(typeParams)
+            "Date"      -> parseDate(typeParams)
+            else        -> {
+                hierarchicEnums.find { it.name == type }?.let(::HierarchicAttribute) ?:
+                flatEnums.find { it.first == type }?.let { EnumAttribute(it.second) } ?:
+                throw ConfigException("unsupported type '$type'")
+            }
+        }
+        return QuasiAttribute(position, name, parsed)
     }
 
     /**
@@ -197,7 +213,7 @@ internal object DescriptorParser {
      * @param right producer if only right value if present
      * @param both producer if string is a complete range
      */
-    private fun <A : AttributeType<*>, T> fromBrackets(
+    private fun <A : QuasiAttributeType<*>, T> fromBrackets(
             params: String, parse: (String) -> T?,
             missing: () -> A,
             left: (T) -> A,
