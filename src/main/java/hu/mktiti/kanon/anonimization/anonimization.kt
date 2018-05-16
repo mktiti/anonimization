@@ -5,7 +5,6 @@ import hu.mktiti.kanon.attribute.*
 import hu.mktiti.kanon.logger
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.io.OutputStream
 import java.util.logging.Level
 
 /**
@@ -32,11 +31,12 @@ object AnonimizationEngine {
 
     private val log by logger()
 
-    fun anonimizeStream(config: StreamConfig) {
+    fun anonymizeStream(config: StreamConfig) {
         val strategy = StreamAnonimizator(config, System.out)
 
         BufferedReader(InputStreamReader(System.`in`)).useLines {
             try {
+                log.info("Stream anonymization started")
                 it.forEach { line ->
                     if (!line.trimStart().startsWith("#") && line.isNotBlank()) {
                         strategy.processRow(config.descriptor.parseLine(line) as? Record
@@ -73,17 +73,14 @@ object AnonimizationEngine {
      * @return blocks representing equality classes
      */
     fun splitToEqClasses(descriptor: RecordDescriptor, data: List<Record>): List<Data> {
-        val quasiIndexes = descriptor.attributes
-                                .mapIndexed(::Pair)
-                                .filter { (_, a) -> a.qualifier == AttributeQualifier.QUASI }
-                                .map(Pair<Int, Attribute<*>>::first)
+        val quasiIndexes = descriptor.quasiAttributes.map { it.position }
 
         val newBlocks: MutableList<Data> = mutableListOf()
         var currentBlocks = listOf(data)
         for (qi in quasiIndexes) {
             newBlocks.clear()
             for (block in currentBlocks) {
-                newBlocks.addAll(splitByColumn(block, qi, descriptor.attributes[qi].type).values)
+                newBlocks.addAll(splitByColumn(block, qi, descriptor.quasiAttributes[qi].type).values)
             }
             currentBlocks = ArrayList<Data>(newBlocks)
         }
@@ -108,7 +105,7 @@ object AnonimizationEngine {
      * @param attribType type of the used column
      * @return a mapping of the different values of the used column to their respective equality classes
      */
-    private fun <T : AttributeValue> splitByColumn(data: Data, attribIndex: Int, attribType: AttributeType<T>): Map<T, Data> {
+    private fun <T : AttributeValue> splitByColumn(data: Data, attribIndex: Int, attribType: QuasiAttributeType<T>): Map<T, Data> {
         val result = HashMap<T, MutableList<Record>>()
 
         for (record in data) {
