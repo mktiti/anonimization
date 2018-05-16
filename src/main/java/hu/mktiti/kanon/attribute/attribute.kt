@@ -12,7 +12,7 @@ data class PartitionSplit<out T : AttributeValue>(val partitionA: Partition<T>, 
  *
  * @param T the type of data to store
  */
-abstract class AttributeType<T : AttributeValue> {
+abstract class QuasiAttributeType<T : AttributeValue> {
     /**
      * Parse attribute data from String
      */
@@ -33,19 +33,45 @@ abstract class AttributeType<T : AttributeValue> {
      */
     abstract fun subsetOf(parent: T, child: T): Boolean
 
+    fun unsafeSubsetOf(parent: Any, child: Any) = subsetOf(parent as T, child as T)
+
     abstract fun smallestGeneralization(values: List<T>): T
 
-    internal fun partition(values: List<T>): Partition<T> = Partition(values, smallestGeneralization(values))
+    internal open fun partition(values: List<T>): Partition<T> = Partition(values, smallestGeneralization(values))
 
-    abstract fun split(partition: Partition<T>, kValue: Int): PartitionSplit<T>?
+    fun unsafePartition(values: Any) = partition(values as List<T>)
+
+    internal open fun singletonPartition(value: T) = Partition(listOf(value), value)
+
+    internal open fun unsafeSingletonPartition(value: Any) = singletonPartition(value as T)
+
+    protected abstract fun splitToParts(partition: Partition<T>, kValue: Int): Pair<List<T>, List<T>>?
+
+    protected abstract fun partitionError(partition: Partition<T>): Double
+
+    fun split(partition: Partition<T>, kValue: Int): PartitionSplit<T>? {
+        val (smaller, bigger) = splitToParts(partition, kValue) ?: return null
+        val partA = partition(smaller)
+        val partB = partition(bigger)
+
+        val errorA = partitionError(partA)
+        val errorB = partitionError(partB)
+        val errorCombined = partitionError(partition)
+
+        return PartitionSplit(partA, partB, 2 * errorCombined - errorA - errorB)
+    }
 }
 
 class AttributeParseException(message: String) : RuntimeException(message)
 
-enum class AttributeQualifier { NONE, QUASI, SECRET, SECRET_KEY }
+sealed class Attribute(val position: Int, val name: String)
 
-data class Attribute<T : AttributeValue>(val name: String, val type: AttributeType<T>, val qualifier: AttributeQualifier) {
+class QuasiAttribute<T : AttributeValue>(position: Int, name: String, val type: QuasiAttributeType<T>) : Attribute(position, name) {
     override fun toString() = "{$name: $type}"
+}
+
+class SecretAttribute(position: Int, name: String) : Attribute(position, name) {
+    override fun toString() = "{$name}"
 }
 
 data class Partition<out T : AttributeValue>(val values: List<T>, val aggregateValue: T)
@@ -55,23 +81,31 @@ data class Partition<out T : AttributeValue>(val values: List<T>, val aggregateV
  *
  * @param attributes list of attributes
  */
-data class RecordDescriptor(val attributes: List<Attribute<*>>) {
+data class RecordDescriptor(val quasiAttributes: List<QuasiAttribute<*>>, val secretAttributes: List<SecretAttribute>) {
     private val log by logger()
 
-    constructor(vararg attributes: Attribute<*>) : this(attributes.toList())
+    val allAttributes: List<Attribute> = with(mutableListOf<Attribute>()) {
+        addAll(quasiAttributes)
+        addAll(secretAttributes)
+        sortedBy(Attribute::position)
+    }
 
     /**
      * Parses line to attribute values
      */
     fun parseLine(line: String): List<Any> {
-        val split = line.split(',')
-        if (split.size != attributes.size) {
-            throw AttributeParseException("Line '$line' has ${split.size} attributes, but ${attributes.size} is required!")
+        val split = line.split(';')
+        if (split.size != allAttributes.size) {
+            throw AttributeParseException("Line '$line' has ${split.size} attributes, but ${allAttributes.size} is required!")
         }
 
         return try {
-            (0 until attributes.size).map {
-                attributes[it].type.parse(split[it])
+            (0 until allAttributes.size).map {
+                val attrib = allAttributes[it]
+                when (attrib) {
+                    is QuasiAttribute<*> -> attrib.type.parse(split[it])
+                    is SecretAttribute -> split[it]
+                }
             }.toList()
         } catch (ape: AttributeParseException) {
             log.log(Level.WARNING, "Unable to parse attribute", ape)
@@ -83,11 +117,14 @@ data class RecordDescriptor(val attributes: List<Attribute<*>>) {
      * Convert attribute values to String representation
      */
     fun showLine(tuple: List<Any>): String {
-        if (tuple.size != attributes.size) throw AttributeParseException("Tuple size doesn't equal number of attributes")
+        if (tuple.size != allAttributes.size) throw AttributeParseException("Tuple size doesn't equal number of attributes")
 
         return try {
-            tuple.zip(attributes).joinToString { (t, a) ->
-                a.type.showUnsafe(t)
+            tuple.zip(allAttributes).joinToString { (t, a) ->
+                when (a) {
+                    is QuasiAttribute<*> -> a.type.showUnsafe(t)
+                    is SecretAttribute -> t.toString()
+                }
             }
         } catch (tce: TypeCastException) {
             log.log(Level.WARNING, "Illegal attribute type", tce)
