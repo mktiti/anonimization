@@ -5,7 +5,7 @@ import kotlin.reflect.KClass
 fun <T : Enum<*>> KClass<T>.asAttribute() = EnumAttribute(this.java.enumConstants.map { it.name }.toSet())
 
 class EnumAttribute(
-        private val valueSet: Set<String>) : AttributeType<EnumAttributeValue>() {
+        private val valueSet: Set<String>) : QuasiAttributeType<EnumAttributeValue>() {
 
     constructor(values: Collection<String>) : this(values.toSet())
 
@@ -14,7 +14,7 @@ class EnumAttribute(
     override fun parse(string: String): EnumAttributeValue {
         val cleaned = string.trim()
         return if (cleaned in valueSet) SimpleEnumValue(cleaned)
-               else throw AttributeParseException("Value '$cleaned' not in enum value set")
+               else throw AttributeParseException("Value '$cleaned' not in enum value set ${valueSet.joinToString(prefix = "{", postfix = "}")}")
     }
 
     fun simplify(attributeValue: EnumAttributeValue): EnumAttributeValue
@@ -30,12 +30,12 @@ class EnumAttribute(
 
     override fun smallestGeneralization(values: List<EnumAttributeValue>) = toAttributeValue(values.flatMap(EnumAttributeValue::asList).distinct())
 
-    private fun partitionError(partition: Partition<EnumAttributeValue>): Double {
+    override fun partitionError(partition: Partition<EnumAttributeValue>): Double {
         val partitionSize = partition.aggregateValue.asList().size
         return partition.values.map { partitionSize / it.asList().size.toDouble() }.average() // Mean error
     }
 
-    override fun split(partition: Partition<EnumAttributeValue>, kValue: Int): PartitionSplit<EnumAttributeValue>? {
+    override fun splitToParts(partition: Partition<EnumAttributeValue>, kValue: Int): Pair<List<EnumAttributeValue>, List<EnumAttributeValue>>? {
         if (partition.values.size < kValue * 2) return null
         assert(kValue >= 1)
 
@@ -63,11 +63,7 @@ class EnumAttribute(
 
         if (growing.size < kValue || shrinking.size < kValue) return null
 
-        val partitionA = partition(growing)
-        val partitionB = partition(shrinking)
-        val errorRatio = (partitionError(partitionA) + partitionError(partitionB)) / (2 * partitionError(partition))
-
-        return PartitionSplit(partitionA, partitionB, errorRatio)
+        return growing to shrinking
     }
 }
 

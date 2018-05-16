@@ -1,7 +1,6 @@
 package hu.mktiti.kanon.attribute
 
 import java.util.*
-import kotlin.math.pow
 
 interface RangeAttributeValue<out T> : AttributeValue {
     fun min(): T
@@ -13,7 +12,7 @@ interface RangeAttributeValue<out T> : AttributeValue {
 
 abstract class RangeAttribute<T : Comparable<T>, AV : RangeAttributeValue<T>>(
         protected val minValue: T,
-        protected val maxValue: T) : AttributeType<AV>() {
+        protected val maxValue: T) : QuasiAttributeType<AV>() {
 
     protected fun simplify(min: T, max: T): AV = if (min == max) simpleValue(min) else rangeValue(min, max)
 
@@ -39,7 +38,7 @@ abstract class RangeAttribute<T : Comparable<T>, AV : RangeAttributeValue<T>>(
 
     override fun smallestGeneralization(values: List<AV>) = simplify(minimum(values), maximum(values))
 
-    override fun split(partition: Partition<AV>, kValue: Int): PartitionSplit<AV>? {
+    override fun splitToParts(partition: Partition<AV>, kValue: Int): Pair<List<AV>, List<AV>>? {
         if (partition.values.size < 2 * kValue) return null
 
         val bigger = LinkedList(partition.values)
@@ -58,17 +57,13 @@ abstract class RangeAttribute<T : Comparable<T>, AV : RangeAttributeValue<T>>(
         }
 
         if (smaller.size >= kValue && bigger.size >= kValue) {
-            val partA = partition(smaller)
-            val partB = partition(bigger)
-            val errorRatio = (partitionError(partA) + partitionError(partB)) / (2 * partitionError(partition))
-
-            return PartitionSplit(partA, partB, errorRatio)
+            return smaller to bigger
         }
 
         return null
     }
 
-    protected open fun partitionError(partition: Partition<AV>): Double {
+    override fun partitionError(partition: Partition<AV>): Double {
         val partitionSize = partition.aggregateValue.rangeSize()
         return partition.values.map { partitionSize / it.rangeSize().toDouble() }.average() // Mean error
     }

@@ -12,7 +12,7 @@ data class MutablePair<K, V>(val key: K, var value: V)
  * @property valueSet root of accepted Enum values
  */
 class HierarchicAttribute(
-        private val valueSet: NamedRecursiveBlock) : AttributeType<HierarchicAttributeValue>() {
+        private val valueSet: NamedRecursiveBlock) : QuasiAttributeType<HierarchicAttributeValue>() {
 
     private val reversed: List<List<Pair<NamedRecursiveBlock, String>>>
 
@@ -74,7 +74,7 @@ class HierarchicAttribute(
 
     }
 
-    private fun partitionError(partition: Partition<HierarchicAttributeValue>): Double {
+    override fun partitionError(partition: Partition<HierarchicAttributeValue>): Double {
         val nodeCount = partition.values.groupBy { it.value.name }.mapValues { it.value.size }
 
         fun sumRatioCount(node: NamedRecursiveBlock, rootValue: Double = 1.toDouble()): Double {
@@ -83,11 +83,12 @@ class HierarchicAttribute(
             return nodeVal + node.content.map { sumRatioCount(it, childrenRoot) }.sum()
         }
 
-        return sumRatioCount(partition.aggregateValue.value) / partition.values.size
+        return sumRatioCount(partition.aggregateValue.value)
     }
 
-    override fun split(partition: Partition<HierarchicAttributeValue>, kValue: Int): PartitionSplit<HierarchicAttributeValue>? {
-        if (kValue < partition.values.size * 2) return null
+    override fun splitToParts(partition: Partition<HierarchicAttributeValue>, kValue: Int): Pair<List<HierarchicAttributeValue>, List<HierarchicAttributeValue>>? {
+        if (partition.values.size < kValue * 2) return null
+        assert(kValue >= 1)
 
         val nodeCount = partition.values.groupBy { it.value.name }.mapValues { it.value.size }
         val withCount = valueSet.map { it to (nodeCount[it] ?: 0) }
@@ -114,11 +115,9 @@ class HierarchicAttribute(
                     selectedCut.contains(it.value.name) { it.key.first }
                 }
 
-        val partA = partition(selected)
-        val partB = partition(remaining)
+        if (selected.size < kValue || remaining.size < kValue) return null
 
-        val errorRatio = (partitionError(partA) + partitionError(partB)) / (2 * partitionError(partition))
-        return PartitionSplit(partA, partB, errorRatio)
+        return selected to remaining
     }
 
 }
