@@ -24,7 +24,7 @@ class FileBasedConfig(
 class StreamConfig(
         descriptor: RecordDescriptor,
         kValue: Int,
-        val batchSize: Int) : Config(descriptor, kValue)
+        val storedLimit: Int) : Config(descriptor, kValue)
 
 private enum class ArgOption(
         val fullName: String,
@@ -37,8 +37,8 @@ private enum class ArgOption(
     DATAFILE("datafile", "f", "the data file to be anonymized", defaultParameter = "data.csv"),
     OUTPUT("output", "o", "anonymization result output filepath", defaultParameter = "output.csv"),
     USE_STDIO("stdio", "s", "use the standard I/O system for streamed data processing", defaultParameter = "", withParameter = false),
-    BATCH_SIZE("batch-size", "b", "batch size for stream processing", defaultParameter = "100"),
-    K_VALUE("k-value", "k", "K anonymizational value to reach", defaultParameter = "50")
+    K_VALUE("k-value", "k", "K anonymizational value to reach", defaultParameter = "50"),
+    STORED_RECORD_LIMIT("stored-limit", "l", "Upper limit of records to store for stream anonymization", defaultParameter = "1000")
 
 }
 
@@ -71,10 +71,7 @@ internal object Parser {
             val useStdIO = commandLine.hasOption(ArgOption.USE_STDIO.fullName)
 
             if (useStdIO) {
-                val batchSize = getIntParameter(commandLine, ArgOption.BATCH_SIZE)
-                if (batchSize < kValue) throw ParseException("Batch size must be larger than, or equal to the desired K value")
-
-                return StreamConfig(descriptor, kValue, batchSize)
+                return StreamConfig(descriptor, kValue, getIntParameter(commandLine, ArgOption.STORED_RECORD_LIMIT))
             } else {
                 val dataFile = File(getParameter(commandLine, ArgOption.DATAFILE))
 
