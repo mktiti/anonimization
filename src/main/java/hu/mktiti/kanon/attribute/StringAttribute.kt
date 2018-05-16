@@ -12,7 +12,7 @@ import kotlin.math.max
 class StringAttribute(
         private val hiddenChar: Char = '*',
         private val minLength: Int = 0,
-        private val maxLength: Int = Int.MAX_VALUE) : AttributeType<StringAttributeValue>() {
+        private val maxLength: Int = Int.MAX_VALUE) : QuasiAttributeType<StringAttributeValue>() {
 
     override fun parse(string: String): StringAttributeValue {
         return if (string.length in minLength..maxLength) {
@@ -51,8 +51,12 @@ class StringAttribute(
         return longest
     }
 
-    override fun split(partition: Partition<StringAttributeValue>, kValue: Int): PartitionSplit<StringAttributeValue>? {
+    override fun splitToParts(partition: Partition<StringAttributeValue>, kValue: Int): Pair<List<StringAttributeValue>, List<StringAttributeValue>>? {
         return null
+    }
+
+    override fun partitionError(partition: Partition<StringAttributeValue>): Double {
+        return 1.toDouble()
     }
 
 }
