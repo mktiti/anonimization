@@ -1,12 +1,9 @@
 package hu.mktiti.kanon.anonimization
 
-import hu.mktiti.kanon.attribute.Attribute
 import hu.mktiti.kanon.attribute.Partition
 import hu.mktiti.kanon.attribute.QuasiAttribute
 import hu.mktiti.kanon.attribute.RecordDescriptor
 import hu.mktiti.kanon.logger
-import java.io.BufferedWriter
-import java.io.OutputStream
 import java.io.PrintStream
 
 class RecordPartition(private val descriptor: RecordDescriptor, private val kValue: Int, private val storeLimit: Int, records: List<Record>) {
@@ -82,10 +79,14 @@ class RecordPartition(private val descriptor: RecordDescriptor, private val kVal
         } ?: listOf(this)
 
     fun releaseAll(outStream: PrintStream) {
-        val quasis = attributePartitions.map { (attrib, part) -> attrib.position to attrib.type.showUnsafe(part.aggregateValue) }
+        val staticAttribs = mutableListOf<Pair<Int, String>>()
+        staticAttribs.addAll(attributePartitions.map { (attrib, part) -> attrib.position to attrib.type.showUnsafe(part.aggregateValue) })
+        staticAttribs.addAll(descriptor.secretAttributes.map { it.position to "*" })
+
         for (record in records) {
-            val allAttribs: MutableList<Pair<Int, String>> = quasis.toMutableList()
-            allAttribs.addAll(descriptor.secretAttributes.map { it.position to record[it.position] as String })
+            val allAttribs: MutableList<Pair<Int, String>> = staticAttribs.toMutableList()
+            allAttribs.addAll(descriptor.passthroughAttributes.map { it.position to record[it.position] as String })
+            allAttribs.addAll(descriptor.secretIdentityAttributes.map { it.position to it.convert(record[it.position].toString()) })
             allAttribs.sortBy { it.first }
             outStream.print(allAttribs.joinToString(prefix = "", separator = ";", postfix = "\n") { it.second })
         }

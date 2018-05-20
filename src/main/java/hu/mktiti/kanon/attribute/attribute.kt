@@ -1,6 +1,7 @@
 package hu.mktiti.kanon.attribute
 
 import hu.mktiti.kanon.logger
+import java.util.*
 import java.util.logging.Level
 
 interface AttributeValue
@@ -71,8 +72,25 @@ class QuasiAttribute<T : AttributeValue>(position: Int, name: String, val type: 
 }
 
 class SecretAttribute(position: Int, name: String) : Attribute(position, name) {
+    override fun toString() = "{$name (secret)}"
+}
+
+class PassthroughAttribute(position: Int, name: String) : Attribute(position, name) {
     override fun toString() = "{$name}"
 }
+
+class SecretIdentityAttribute(position: Int, name: String) : Attribute(position, name) {
+    private val idMap = mutableMapOf<String, String>()
+
+    override fun toString() = "{$name (secret id)}"
+
+    fun convert(value: String) = idMap.getOrPut(value, { UUID.randomUUID().toString() })
+}
+
+data class AttributeQuad(val passthrough: List<PassthroughAttribute>,
+                         val secrets: List<SecretAttribute>,
+                         val secretIdentities: List<SecretIdentityAttribute>,
+                         val quasis: List<QuasiAttribute<*>>)
 
 data class Partition<out T : AttributeValue>(val values: List<T>, val aggregateValue: T)
 
@@ -81,12 +99,17 @@ data class Partition<out T : AttributeValue>(val values: List<T>, val aggregateV
  *
  * @param attributes list of attributes
  */
-data class RecordDescriptor(val quasiAttributes: List<QuasiAttribute<*>>, val secretAttributes: List<SecretAttribute>) {
+data class RecordDescriptor(val passthroughAttributes: List<PassthroughAttribute>,
+                            val secretAttributes: List<SecretAttribute>,
+                            val secretIdentityAttributes: List<SecretIdentityAttribute>,
+                            val quasiAttributes: List<QuasiAttribute<*>>) {
     private val log by logger()
 
-    val allAttributes: List<Attribute> = with(mutableListOf<Attribute>()) {
-        addAll(quasiAttributes)
+    private val allAttributes: List<Attribute> = with(mutableListOf<Attribute>()) {
+        addAll(passthroughAttributes)
         addAll(secretAttributes)
+        addAll(secretIdentityAttributes)
+        addAll(quasiAttributes)
         sortedBy(Attribute::position)
     }
 
@@ -103,8 +126,10 @@ data class RecordDescriptor(val quasiAttributes: List<QuasiAttribute<*>>, val se
             (0 until allAttributes.size).map {
                 val attrib = allAttributes[it]
                 when (attrib) {
+                    is PassthroughAttribute -> split[it]
+                    is SecretAttribute -> "*"
+                    is SecretIdentityAttribute -> split[it]
                     is QuasiAttribute<*> -> attrib.type.parse(split[it])
-                    is SecretAttribute -> split[it]
                 }
             }.toList()
         } catch (ape: AttributeParseException) {
@@ -122,8 +147,10 @@ data class RecordDescriptor(val quasiAttributes: List<QuasiAttribute<*>>, val se
         return try {
             tuple.zip(allAttributes).joinToString { (t, a) ->
                 when (a) {
+                    is PassthroughAttribute -> t.toString()
+                    is SecretAttribute -> "*"
+                    is SecretIdentityAttribute -> a.convert(t.toString())
                     is QuasiAttribute<*> -> a.type.showUnsafe(t)
-                    is SecretAttribute -> t.toString()
                 }
             }
         } catch (tce: TypeCastException) {

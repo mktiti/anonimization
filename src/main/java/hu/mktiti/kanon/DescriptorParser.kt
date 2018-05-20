@@ -87,7 +87,7 @@ internal object DescriptorParser {
         }
 
         val attributes = parseAttributes(attributesBlock.content.joinToString(separator = "\n") { it.name }, hierarchicEnums, flatEnums)
-        return attributes?.let { (quasis, secrets) -> RecordDescriptor(quasis, secrets) }
+        return attributes?.let { (passthroughs, secrets, secretIds, quasis) -> RecordDescriptor(passthroughs, secrets, secretIds, quasis) }
     }
 
     /**
@@ -97,20 +97,20 @@ internal object DescriptorParser {
      * @param hierarchicEnums the list of (structured) hierarchic enums that are defined and can be referenced
      * @param flatEnums the list of flat enums that are defined and can be referenced
      */
-    private fun parseAttributes(content: String, hierarchicEnums: List<NamedRecursiveBlock>, flatEnums: List<Pair<String, List<String>>>)
-            : Pair<List<QuasiAttribute<*>>, List<SecretAttribute>>? {
+    private fun parseAttributes(content: String, hierarchicEnums: List<NamedRecursiveBlock>, flatEnums: List<Pair<String, List<String>>>): AttributeQuad? {
         try {
-            val attributes =  content.lines()
-                                     .map(String::trim)
-                                     .filter { it.isNotEmpty() && !it.trimStart().startsWith("#") }
-                                     .mapIndexed { i, line -> parseLine(line, i, hierarchicEnums, flatEnums) }
+            val passthroughs = mutableListOf<PassthroughAttribute>()
+            val secrets = mutableListOf<SecretAttribute>()
+            val secretsIdentities = mutableListOf<SecretIdentityAttribute>()
+            val quasis = mutableListOf<QuasiAttribute<*>>()
 
-            val quasis: MutableList<QuasiAttribute<*>> = ArrayList(attributes.size)
-            val secrets: MutableList<SecretAttribute> = ArrayList(attributes.size)
+            content.lines()
+                   .map(String::trim)
+                   .filter { it.isNotEmpty() && !it.trimStart().startsWith("#") }
+                   .mapIndexed { i, line -> parseLine(line, i, hierarchicEnums, flatEnums,
+                                            passthroughs::add, secrets::add, secretsIdentities::add, quasis::add) }
 
-            attributes.map { it.fold(quasis::add, secrets::add) }
-
-            return quasis to secrets
+            return AttributeQuad(passthroughs, secrets, secretsIdentities, quasis)
         } catch (ce: ConfigException) {
             log.warning("Unable to correctly parse attributes")
             log.warning(ce.message)
@@ -127,16 +127,21 @@ internal object DescriptorParser {
      * @param hierarchicEnums the list of (structured) hierarchic enums that are defined and can be referenced
      * @param flatEnums the list of flat flat enums that are defined and can be referenced
      */
-    private fun parseLine(line: String, prevCount: Int, hierarchicEnums: List<NamedRecursiveBlock>, flatEnums: List<Pair<String, List<String>>>)
-            : Either<QuasiAttribute<*>, SecretAttribute> {
+    private fun parseLine(line: String, prevCount: Int, hierarchicEnums: List<NamedRecursiveBlock>, flatEnums: List<Pair<String, List<String>>>,
+                          passthroughAdd: (PassthroughAttribute) -> Any,
+                          secretAdd: (SecretAttribute) -> Any,
+                          secretIdAdd: (SecretIdentityAttribute) -> Any,
+                          quasiAdd: (QuasiAttribute<*>) -> Any) {
         try {
             val tokens: MutableList<String> = LinkedList(line.trim().split("\\s+".toRegex()))
             val name = tokens.removeAt(0)
             val qualifier = tokens.removeAt(0)
 
-            return when (qualifier) {
-                "secret" -> Either.right(SecretAttribute(prevCount, name))
-                "quasi" -> Either.left(parseQuasi(prevCount, name, tokens, hierarchicEnums, flatEnums))
+            when (qualifier) {
+                "pass" -> passthroughAdd(PassthroughAttribute(prevCount, name))
+                "secret" -> secretAdd(SecretAttribute(prevCount, name))
+                "secret-id" -> secretIdAdd(SecretIdentityAttribute(prevCount, name))
+                "quasi" -> quasiAdd(parseQuasi(prevCount, name, tokens, hierarchicEnums, flatEnums))
                 else -> throw ConfigException("Unrecognised attribute qualifier '$qualifier'")
             }
 
