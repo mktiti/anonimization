@@ -35,7 +35,7 @@ class IntAttribute(
 
     override fun show(value: IntAttributeValue) = when (value) {
         is SimpleIntValue -> value.value.toString()
-        is IntRangeValue  -> "${value.start} : ${value.end}"
+        is IntRangeValue  -> "${value.start} - ${value.end}"
     }
 
     override fun simpleValue(value: Int) = SimpleIntValue(value)

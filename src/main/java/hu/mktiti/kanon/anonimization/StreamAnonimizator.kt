@@ -1,7 +1,6 @@
 package hu.mktiti.kanon.anonimization
 
 import hu.mktiti.kanon.StreamConfig
-import hu.mktiti.kanon.attribute.Partition
 import hu.mktiti.kanon.logger
 import java.io.OutputStream
 import java.io.PrintStream

@@ -1,7 +1,10 @@
 package hu.mktiti.kanon.anonimization
 
 import hu.mktiti.kanon.StreamConfig
-import hu.mktiti.kanon.attribute.*
+import hu.mktiti.kanon.attribute.AttributeParseException
+import hu.mktiti.kanon.attribute.AttributeValue
+import hu.mktiti.kanon.attribute.QuasiAttributeType
+import hu.mktiti.kanon.attribute.RecordDescriptor
 import hu.mktiti.kanon.logger
 import java.io.BufferedReader
 import java.io.InputStreamReader

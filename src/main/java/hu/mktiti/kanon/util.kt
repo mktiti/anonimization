@@ -1,6 +1,5 @@
 package hu.mktiti.kanon
 
-import java.lang.instrument.ClassFileTransformer
 import java.util.*
 import java.util.logging.Logger
 import kotlin.reflect.full.companionObject
