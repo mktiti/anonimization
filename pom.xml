@@ -22,9 +22,9 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.funktionale</groupId>
-            <artifactId>funktionale-either</artifactId>
-            <version>1.2</version>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>25.0-jre</version>
         </dependency>
         <dependency>
             <groupId>commons-cli</groupId>

@@ -1,7 +1,9 @@
 package hu.mktiti.kanon.attribute
 
+import com.google.common.hash.HashFunction
+import com.google.common.hash.Hashing
 import hu.mktiti.kanon.logger
-import java.util.*
+import java.nio.charset.Charset
 import java.util.logging.Level
 
 interface AttributeValue
@@ -80,11 +82,13 @@ class PassthroughAttribute(position: Int, name: String) : Attribute(position, na
 }
 
 class SecretIdentityAttribute(position: Int, name: String) : Attribute(position, name) {
-    private val idMap = mutableMapOf<String, String>()
+    companion object {
+        val algo: HashFunction = Hashing.murmur3_32()
+    }
 
     override fun toString() = "{$name (secret id)}"
 
-    fun convert(value: String) = idMap.getOrPut(value, { UUID.randomUUID().toString() })
+    fun convert(value: String): String = algo.hashString(value, Charset.defaultCharset()).asInt().toString()
 }
 
 data class AttributeQuad(val passthrough: List<PassthroughAttribute>,
