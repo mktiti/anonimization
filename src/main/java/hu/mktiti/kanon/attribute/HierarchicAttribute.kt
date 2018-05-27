@@ -83,7 +83,7 @@ class HierarchicAttribute(
             return nodeVal + node.content.map { sumRatioCount(it, childrenRoot) }.sum()
         }
 
-        return sumRatioCount(partition.aggregateValue.value)
+        return sumRatioCount(partition.aggregateValue.value) / partition.values.size
     }
 
     override fun splitToParts(partition: Partition<HierarchicAttributeValue>, kValue: Int): Pair<List<HierarchicAttributeValue>, List<HierarchicAttributeValue>>? {
