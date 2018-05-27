@@ -1,5 +1,6 @@
 package hu.mktiti.kanon.anonimization
 
+import hu.mktiti.kanon.FileBasedConfig
 import hu.mktiti.kanon.StreamConfig
 import hu.mktiti.kanon.attribute.AttributeParseException
 import hu.mktiti.kanon.attribute.AttributeValue
@@ -14,7 +15,7 @@ import java.util.logging.Level
  * Data anonimization algoritm (strategy pattern)
  */
 interface FullDataAnonimizationAlgorithm {
-    fun anonimize()
+    fun anonymize()
 }
 
 interface StreamAnonimizationAlgorithm {
@@ -55,6 +56,14 @@ object AnonimizationEngine {
         }
 
         strategy.close()
+    }
+
+    fun anonymizeFile(config: FileBasedConfig) {
+        val strategy = FileAnonimizator(config)
+
+        log.info("Starting full file anonymization strategy anonymization")
+        strategy.anonymize()
+        log.info("Full file anonymization strategy finished")
     }
 
     /**

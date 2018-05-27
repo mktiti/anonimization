@@ -27,16 +27,7 @@ object Framework {
             }
 
             is FileBasedConfig -> {
-                config.dataFile.useLines { lines ->
-                    val data = lines
-                            .filterNot(String::isBlank)
-                            .filterNot { it.trimStart().startsWith("#") }
-                            .map(config.descriptor::parseLine).toList()
-
-                    println("K-Anonimity: ${AnonimizationEngine.calculateKAnonimity(config.descriptor, data)}")
-
-                    println(data.joinToString(separator = "\n", transform = config.descriptor::showLine))
-                }
+                AnonimizationEngine.anonymizeFile(config)
             }
         }
 
@@ -45,6 +36,7 @@ object Framework {
 
 fun main(args: Array<String>) {
     //Framework.main(args)
+
 
     // Start with mock input data stream from IDE
     // Same as piping 'data.csv' into the program and redirecting std err to 'log.txt'
@@ -56,5 +48,4 @@ fun main(args: Array<String>) {
             Framework.main(args)
         }
     }
-
 }
