@@ -21,7 +21,7 @@ class EnumAttribute(
         = if (attributeValue is ListEnumValue && attributeValue.asList().size == 1) SimpleEnumValue(attributeValue.asList().first()) else attributeValue
 
     private fun toAttributeValue(values: List<String>) = when (values.size) {
-        0 -> throw AttributeParseException("Empty enum attribute")
+        0 -> ListEnumValue(listOf())
         1 -> SimpleEnumValue(values[0])
         else -> ListEnumValue(values)
     }

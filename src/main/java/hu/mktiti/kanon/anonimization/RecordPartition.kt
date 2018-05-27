@@ -1,5 +1,6 @@
 package hu.mktiti.kanon.anonimization
 
+import hu.mktiti.kanon.attribute.AttributeValue
 import hu.mktiti.kanon.attribute.Partition
 import hu.mktiti.kanon.attribute.QuasiAttribute
 import hu.mktiti.kanon.attribute.RecordDescriptor
@@ -11,12 +12,15 @@ class RecordPartition(private val descriptor: RecordDescriptor, private val kVal
 
     private val records: MutableList<Record> = ArrayList<Record>(2 * storeLimit).apply { addAll(records) }
 
+    fun recordsView(): List<Record> = records
+
     val size: Int
         get() = records.size
 
     val isEmpty: Boolean
         get() = records.isEmpty()
 
+    private var prevAttributePartitions: Map<QuasiAttribute<*>, AttributeValue>? = null
     private var attributePartitions: Map<QuasiAttribute<*>, Partition<*>> = calculateAttribPartitions()
 
     private fun recordView(position: Int) = records.map { it[position] }
@@ -25,10 +29,25 @@ class RecordPartition(private val descriptor: RecordDescriptor, private val kVal
 
     private fun copy(records: List<Record>) = RecordPartition(descriptor, kValue, storeLimit, records)
 
-    fun contains(record: Record): Boolean =
-        attributePartitions.asSequence().all { (attribute, partition) ->
-            attribute.type.unsafeSubsetOf(partition.aggregateValue, record[attribute.position])
+    fun clear() {
+        prevAttributePartitions = attributePartitions.mapValues { it.value.aggregateValue }
+        records.clear()
+        attributePartitions = calculateAttribPartitions()
+    }
+
+    fun errorSum() = attributePartitions.entries.sumByDouble { (k, v) -> k.type.partitionError(v as Partition<Nothing>) }
+
+    private fun attribMapContains(record: Record) = attributePartitions.asSequence().all { (attribute, partition) ->
+        attribute.type.unsafeSubsetOf(partition.aggregateValue, record[attribute.position])
+    }
+
+    private fun prevAttribsContains(record: Record) = prevAttributePartitions?.let {
+        attributePartitions.asSequence().all { (attribute, aggregate) ->
+            attribute.type.unsafeSubsetOf(aggregate, record[attribute.position])
         }
+    } ?: true
+
+    fun contains(record: Record): Boolean = attribMapContains(record) && prevAttribsContains(record)
 
     private fun calculateAttribPartitions() = descriptor.quasiAttributes.associate { attribute ->
         attribute to attribute.type.unsafePartition(recordView(attribute))

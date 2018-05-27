@@ -50,7 +50,7 @@ abstract class QuasiAttributeType<T : AttributeValue> {
 
     protected abstract fun splitToParts(partition: Partition<T>, kValue: Int): Pair<List<T>, List<T>>?
 
-    protected abstract fun partitionError(partition: Partition<T>): Double
+    abstract fun partitionError(partition: Partition<T>): Double
 
     fun split(partition: Partition<T>, kValue: Int): PartitionSplit<T>? {
         val (smaller, bigger) = splitToParts(partition, kValue) ?: return null
